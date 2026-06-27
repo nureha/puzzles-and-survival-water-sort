@@ -26,6 +26,7 @@ function App() {
   const [solving, setSolving] = useState(false);
   const [solverStates, setSolverStates] = useState(0);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const { saves, save, remove, overwrite } = useSaves();
 
@@ -175,6 +176,39 @@ function App() {
     setCompletedCount(0);
   };
 
+  const handleCopyState = () => {
+    const formatTubes = (ts: UITube[]) =>
+      ts.map(t => {
+        const cells = t.filter(c => c !== '');
+        return cells.length === 0 ? '空' : cells.join('');
+      }).join(', ');
+
+    const lines: string[] = [];
+
+    if (initialTubes) {
+      lines.push(`初期盤面: ${formatTubes(initialTubes)}`);
+      lines.push(`現在の盤面: ${formatTubes(tubes)}`);
+    } else {
+      lines.push(`盤面: ${formatTubes(tubes)}`);
+    }
+
+    if (result && 'moves' in result) {
+      const movesStr = result.moves
+        .map((m, i) => {
+          const label = `${m.from + 1}→${m.to + 1}${m.isSpeculative ? '(推定)' : ''}`;
+          return i === completedCount - 1 ? `[${label}]` : label;
+        })
+        .join(', ');
+      const type = result.type === 'speculative' ? '推定' : result.type === 'partial' ? '部分' : '確定';
+      lines.push(`手順(${type}, ${completedCount}/${result.moves.length}完了): ${movesStr}`);
+    }
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   return (
     <div className="app">
       <h1>Water Sort Solver</h1>
@@ -197,6 +231,9 @@ function App() {
             </button>
             <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
               保存 / 読み込み
+            </button>
+            <button className="save-load-btn" onClick={handleCopyState}>
+              {copied ? 'コピーしました' : '状態をコピー'}
             </button>
           </div>
         </div>
