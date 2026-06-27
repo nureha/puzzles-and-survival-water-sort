@@ -25,6 +25,8 @@ export function isValidMove(state: PuzzleState, from: number, to: number): boole
   const dst = state[to];
   const srcTop = topColor(src);
   if (!srcTop || srcTop === '?') return false;
+  // Never move from an already-completed tube
+  if (src.length === 4 && src.every(c => c === src[0])) return false;
   const dstTop = topColor(dst);
   if (dstTop === '?') return false;
   if (dstTop && dstTop !== srcTop) return false;
@@ -147,11 +149,16 @@ function solvePartial(initialState: PuzzleState): SolveResult {
   type Node = { state: PuzzleState; moves: Move[] };
   const queue: Node[] = [{ state: initialState, moves: [] }];
   const visited = new Set<string>([stateKey(initialState)]);
-  let longestMoves: Move[] = [];
 
   while (queue.length > 0 && visited.size < MAX_STATES) {
     const { state, moves } = queue.shift()!;
-    if (moves.length > longestMoves.length) longestMoves = moves;
+
+    // Return as soon as we reach a state where a ? can be revealed.
+    // BFS guarantees this is the shortest path to any such state.
+    const hints = findRevealHints(state);
+    if (hints.length > 0) {
+      return { type: 'partial', moves, revealHints: hints };
+    }
 
     for (let from = 0; from < state.length; from++) {
       for (let to = 0; to < state.length; to++) {
@@ -165,9 +172,7 @@ function solvePartial(initialState: PuzzleState): SolveResult {
     }
   }
 
-  // Hints from initialState (not finalState) — deliberate: finalState has ? exposed already
-  const revealHints = findRevealHints(initialState);
-  return { type: 'partial', moves: longestMoves, revealHints };
+  return { type: 'partial', moves: [], revealHints: findRevealHints(initialState) };
 }
 
 function findRevealHints(state: PuzzleState): RevealHint[] {
