@@ -50,11 +50,17 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset, on
     );
   }
 
-  // type === 'solved'
+  // type === 'solved' | 'speculative'
+  const isSpeculative = result.type === 'speculative';
   const cleared = result.moves.length > 0 && completedCount === result.moves.length;
 
   return (
     <div>
+      {isSpeculative && (
+        <div style={{ padding: '0.6rem 0.75rem', marginBottom: '0.75rem', background: 'color-mix(in srgb, orange 12%, transparent)', border: '1px solid orange', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text)' }}>
+          ⚠️ <strong>推定手順：</strong>? の色を仮定して解いています。実際の色が違う場合は手順が変わります。
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
         <span style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>
           手順 ({result.moves.length}ステップ)
@@ -139,6 +145,7 @@ function MoveList({
         const done = i < completedCount;
         const current = i === completedCount;
         const disabled = i !== completedCount && i !== completedCount - 1;
+        const specColor = move.isSpeculative ? 'orange' : undefined;
         return (
           <li key={i}>
             <label
@@ -150,7 +157,7 @@ function MoveList({
                 cursor: disabled ? 'default' : 'pointer',
                 opacity: done && disabled ? 0.25 : done ? 0.4 : 1,
                 fontWeight: current ? 'bold' : 'normal',
-                color: current ? 'var(--app-link)' : 'var(--text)',
+                color: specColor ?? (current ? 'var(--app-link)' : 'var(--text)'),
                 userSelect: 'none',
               }}
             >
@@ -164,6 +171,7 @@ function MoveList({
               <span style={{ textDecoration: done ? 'line-through' : 'none' }}>
                 {current ? '▶ ' : ''}
                 {i + 1}. 試験管{move.from + 1} → 試験管{move.to + 1}
+                {move.isSpeculative ? ' （推定）' : ''}
               </span>
             </label>
           </li>

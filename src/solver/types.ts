@@ -11,7 +11,7 @@ export type InternalColor = string;
 export type InternalTube = InternalColor[];
 export type PuzzleState = InternalTube[];
 
-export type Move = { from: number; to: number };
+export type Move = { from: number; to: number; isSpeculative?: boolean };
 
 export type RevealHint = {
   tubeIndex: number;
@@ -20,6 +20,7 @@ export type RevealHint = {
 
 export type SolveResult =
   | { type: 'solved'; moves: Move[] }
+  | { type: 'speculative'; moves: Move[] }
   | { type: 'unsolvable' }
   | { type: 'partial'; moves: Move[]; revealHints: RevealHint[] };
 

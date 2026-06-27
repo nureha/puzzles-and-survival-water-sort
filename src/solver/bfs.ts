@@ -103,31 +103,27 @@ class MinHeap<T> {
 }
 
 const MAX_STATES = 500_000;
+const SPECULATIVE_ATTEMPTS = 20;
+const SPECULATIVE_MAX_STATES = 200_000;
 
-export function solve(initialState: PuzzleState, onProgress?: (n: number) => void): SolveResult {
-  if (isGoal(initialState)) return { type: 'solved', moves: [] };
-
-  if (initialState.some(tube => tube.includes('?'))) {
-    return solvePartial(initialState);
-  }
-
+function solveAstar(
+  initialState: PuzzleState,
+  maxStates: number,
+  onProgress?: (n: number) => void,
+): Move[] | null {
   type Node = { state: PuzzleState; moves: Move[]; g: number };
   const open = new MinHeap<Node>();
-  // best maps stateKey -> best g seen so far (for lazy deletion)
   const best = new Map<string, number>();
 
   best.set(stateKey(initialState), 0);
   open.push({ state: initialState, moves: [], g: 0 }, heuristic(initialState));
 
-  while (open.size > 0 && best.size < MAX_STATES) {
+  while (open.size > 0 && best.size < maxStates) {
     if (onProgress && best.size % 10_000 === 0 && best.size > 0) onProgress(best.size);
 
     const { state, moves, g } = open.pop()!;
-
-    // Skip stale entry: a better path to this state was found later
     if ((best.get(stateKey(state)) ?? Infinity) < g) continue;
-
-    if (isGoal(state)) return { type: 'solved', moves };
+    if (isGoal(state)) return moves;
 
     for (let from = 0; from < state.length; from++) {
       for (let to = 0; to < state.length; to++) {
@@ -142,7 +138,103 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
     }
   }
 
-  return { type: 'unsolvable' };
+  return null;
+}
+
+// Returns pool of colors that must fill the ? positions, or null if counts are inconsistent.
+function buildColorPool(state: PuzzleState): string[] | null {
+  const counts: Record<string, number> = {};
+  let qCount = 0;
+  for (const tube of state) {
+    for (const cell of tube) {
+      if (cell === '?') { qCount++; continue; }
+      counts[cell] = (counts[cell] ?? 0) + 1;
+    }
+  }
+  const pool: string[] = [];
+  for (const [color, count] of Object.entries(counts)) {
+    const needed = 4 - count;
+    if (needed < 0) return null;
+    for (let i = 0; i < needed; i++) pool.push(color);
+  }
+  if (pool.length !== qCount) return null;
+  return pool;
+}
+
+function fisherYates(arr: string[]): string[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function applyAssignment(state: PuzzleState, pool: string[]): PuzzleState {
+  let idx = 0;
+  return state.map(tube =>
+    tube.map(cell => (cell === '?' ? pool[idx++] : cell))
+  );
+}
+
+// Tracks which moves touch cells that originated from a ? position.
+function markSpeculativeMoves(initialState: PuzzleState, testState: PuzzleState, moves: Move[]): Move[] {
+  // Parallel isQ array mirrors testState
+  let isQ = testState.map(tube => tube.map(() => false));
+
+  // Mark positions that were ? in initialState
+  for (let ti = 0; ti < initialState.length; ti++) {
+    for (let li = 0; li < initialState[ti].length; li++) {
+      if (initialState[ti][li] === '?') isQ[ti][li] = true;
+    }
+  }
+
+  return moves.map(move => {
+    const src = testState[move.from];
+    const count = topConsecutiveCount(src);
+    const srcIsQ = isQ[move.from].slice(src.length - count).some(Boolean);
+
+    // Move the isQ flags along with the cells
+    const nextIsQ = isQ.map(t => [...t]);
+    const movedFlags = nextIsQ[move.from].splice(nextIsQ[move.from].length - count, count);
+    nextIsQ[move.to].push(...movedFlags);
+    isQ = nextIsQ;
+
+    testState = applyMove(testState, move.from, move.to);
+    return { ...move, isSpeculative: srcIsQ };
+  });
+}
+
+function solveSpeculative(
+  initialState: PuzzleState,
+  onProgress?: (n: number) => void,
+): SolveResult | null {
+  const pool = buildColorPool(initialState);
+  if (!pool) return null;
+
+  for (let attempt = 0; attempt < SPECULATIVE_ATTEMPTS; attempt++) {
+    const assignment = fisherYates(pool);
+    const testState = applyAssignment(initialState, assignment);
+    const moves = solveAstar(testState, SPECULATIVE_MAX_STATES, onProgress);
+    if (moves) {
+      const markedMoves = markSpeculativeMoves(initialState, testState, moves);
+      return { type: 'speculative', moves: markedMoves };
+    }
+  }
+  return null;
+}
+
+export function solve(initialState: PuzzleState, onProgress?: (n: number) => void): SolveResult {
+  if (isGoal(initialState)) return { type: 'solved', moves: [] };
+
+  if (initialState.some(tube => tube.includes('?'))) {
+    const specResult = solveSpeculative(initialState, onProgress);
+    if (specResult) return specResult;
+    return solvePartial(initialState);
+  }
+
+  const moves = solveAstar(initialState, MAX_STATES, onProgress);
+  return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
 }
 
 function solvePartial(initialState: PuzzleState): SolveResult {
