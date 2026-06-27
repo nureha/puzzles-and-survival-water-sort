@@ -18,6 +18,7 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (tubes.every(tube => tube.every(c => c === ''))) { alert('盤面が空のため保存できません'); return; }
     onSave(trimmed, tubes);
     setName('');
   };
@@ -68,7 +69,11 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
                     </span>
                   </div>
                   <div className="save-entry-actions">
-                    <button className="overwrite-btn" onClick={() => onOverwrite(entry.id, tubes)}>
+                    <button className="overwrite-btn" onClick={() => {
+                      const isEmpty = tubes.every(tube => tube.every(c => c === ''));
+                      if (isEmpty) { alert('盤面が空のため上書きできません'); return; }
+                      onOverwrite(entry.id, tubes);
+                    }}>
                       上書き
                     </button>
                     <button className="load-btn" onClick={() => {
