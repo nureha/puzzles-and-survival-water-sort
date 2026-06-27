@@ -193,9 +193,12 @@ function markSpeculativeMoves(initialState: PuzzleState, testState: PuzzleState,
     const src = testState[move.from];
     const count = topConsecutiveCount(src);
     const srcIsQ = isQ[move.from].slice(src.length - count).some(Boolean);
-    // Also speculative if the destination already has a ?-origin cell —
-    // pouring into that tube depends on the assumed color being correct.
-    const dstHasQ = isQ[move.to].some(Boolean);
+    // Speculative if we are pouring directly onto a ?-origin cell
+    // (the current top of the destination is ?-origin).
+    // Checking the whole tube is too broad — a ? buried below known cells
+    // does not make a C→C pour speculative.
+    const dstLen = isQ[move.to].length;
+    const dstAdjacentIsQ = dstLen > 0 && isQ[move.to][dstLen - 1];
 
     // Move the isQ flags along with the cells
     const nextIsQ = isQ.map(t => [...t]);
@@ -204,7 +207,7 @@ function markSpeculativeMoves(initialState: PuzzleState, testState: PuzzleState,
     isQ = nextIsQ;
 
     testState = applyMove(testState, move.from, move.to);
-    return { ...move, isSpeculative: srcIsQ || dstHasQ };
+    return { ...move, isSpeculative: srcIsQ || dstAdjacentIsQ };
   });
 }
 
