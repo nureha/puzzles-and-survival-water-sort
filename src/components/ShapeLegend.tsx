@@ -10,6 +10,7 @@ const LEGEND: { letter: string; symbol: string; label: string; rotate?: number; 
   { letter: 'I', symbol: '■', label: '四角' },
   { letter: 'J', symbol: '⬠', label: '五角形', rotate: 180, fontSize: '2.0rem' },
   { letter: 'K', symbol: 'II', label: 'イコール縦' },
+  { letter: 'L', symbol: '△', label: '三角形' },
 ];
 
 export function ShapeLegend() {

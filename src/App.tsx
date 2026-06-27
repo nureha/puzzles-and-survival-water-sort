@@ -53,15 +53,24 @@ function App() {
   const handleTubesChange = (newTubes: UITube[]) => {
     setError(validateColorCounts(newTubes));
 
-    // Compute new initial state (? propagation: map edits from mid-solution back to initial)
+    // Compute new initial state (? propagation: map edits from mid-solution back to initial).
+    // Diff must be done at the InternalTube (bottom-to-top) level, not UITube level.
+    // After moves, the ? may sit at a different UITube index than in initialTubes because
+    // cells that were originally above it have been moved away — but its InternalTube index
+    // is invariant (the solver never moves ? cells).
     const updatedInitial: UITube[] = (completedCount > 0 && initialTubes)
-      ? initialTubes.map((tube, ti) =>
-          tube.map((cell, li) => {
-            const prev = tubes[ti]?.[li];
-            const next = newTubes[ti]?.[li];
-            return prev !== next ? (next ?? '') : cell;
-          }) as UITube
-        )
+      ? (() => {
+          const initInternal = initialTubes.map(uiToInternal);
+          const midInternal  = tubes.map(uiToInternal);
+          const newInternal  = newTubes.map(uiToInternal);
+          return initInternal.map((initTube, ti) =>
+            internalToUI(initTube.map((cell, li) => {
+              const prev = midInternal[ti]?.[li];
+              const next = newInternal[ti]?.[li];
+              return (prev !== undefined && next !== undefined && prev !== next) ? next : cell;
+            }))
+          );
+        })()
       : newTubes;
 
     // If a solution exists, check whether all its moves are still valid from the new initial state.
