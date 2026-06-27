@@ -1,5 +1,7 @@
 # Water Sort Solver — パズルアンドサバイバル用
 
+**[▶ アプリを開く](https://nureha.github.io/puzzles-and-survival-water-sort/)**
+
 パズルアンドサバイバル（Puzzles & Survival）のウォーターソートパズルを解くWebアプリです。
 
 ## 機能
