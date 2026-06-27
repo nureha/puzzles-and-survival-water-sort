@@ -286,10 +286,11 @@ function findRevealHints(state: PuzzleState): RevealHint[] {
       for (let j = 0; j < state.length; j++) {
         if (isValidMove(state, i, j)) dests.push(j + 1);
       }
-      const destStr = dests.length > 0 ? `試験管${dests.join('・')}へ` : 'どこかへ';
+      // Only a real reveal opportunity if the blocking block can actually be moved.
+      if (dests.length === 0) continue;
       hints.push({
         tubeIndex: i,
-        description: `試験管${i + 1}のトップ（${top}）を${destStr}動かすと ? が判明します`,
+        description: `試験管${i + 1}のトップ（${top}）を試験管${dests.join('・')}へ動かすと ? が判明します`,
       });
     }
   }
