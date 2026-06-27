@@ -26,6 +26,7 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
       {tubes.map((tube, ti) => (
         <div
           key={ti}
+          className="tube-col"
           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
         >
           <span style={{ fontSize: '0.8rem', color: 'var(--app-muted)' }}>#{ti + 1}</span>
