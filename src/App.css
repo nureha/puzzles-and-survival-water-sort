@@ -8,6 +8,22 @@
   box-sizing: border-box;
 }
 
+@media (max-width: 600px) {
+  .app {
+    padding: 1rem;
+  }
+
+  .panels {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .panel {
+    flex: none;
+    width: 100%;
+  }
+}
+
 h1 {
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
