@@ -68,11 +68,15 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
                     </span>
                   </div>
                   <div className="save-entry-actions">
-                    <button className="load-btn" onClick={() => { onLoad(entry); onClose(); }}>
-                      読み込み
-                    </button>
                     <button className="overwrite-btn" onClick={() => onOverwrite(entry.id, tubes)}>
                       上書き
+                    </button>
+                    <button className="load-btn" onClick={() => {
+                      if (!confirm('現在の盤面が消えてしまいますがよろしいですか？')) return;
+                      onLoad(entry);
+                      onClose();
+                    }}>
+                      読み込み
                     </button>
                     <button className="delete-btn" onClick={() => onDelete(entry.id)}>
                       削除
