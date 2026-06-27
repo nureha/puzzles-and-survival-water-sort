@@ -25,10 +25,10 @@ export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
         textAlign: 'center',
         fontSize: '1.2rem',
         fontWeight: 'bold',
-        border: '2px solid #ccc',
+        border: '2px solid var(--app-input-border)',
         borderRadius: '4px',
-        background: disabled ? '#f0f0f0' : '#fff',
-        color: value === '?' ? '#999' : '#222',
+        background: disabled ? 'var(--app-input-disabled-bg)' : 'var(--app-input-bg)',
+        color: value === '?' ? 'var(--app-q-color)' : 'var(--text-h)',
         cursor: disabled ? 'not-allowed' : 'text',
       }}
     />

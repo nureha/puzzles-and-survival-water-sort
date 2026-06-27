@@ -28,7 +28,7 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
           key={ti}
           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
         >
-          <span style={{ fontSize: '0.8rem', color: '#666' }}>#{ti + 1}</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--app-muted)' }}>#{ti + 1}</span>
           {tube.map((cell, ci) => (
             <TubeCell
               key={ci}
@@ -39,7 +39,16 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
           ))}
           <button
             onClick={() => handleClear(ti)}
-            style={{ fontSize: '0.75rem', padding: '2px 8px', marginTop: '4px' }}
+            style={{
+              fontSize: '0.75rem',
+              padding: '2px 8px',
+              marginTop: '4px',
+              background: 'var(--app-btn-bg)',
+              border: '1px solid var(--app-btn-border)',
+              borderRadius: '4px',
+              color: 'var(--text-h)',
+              cursor: 'pointer',
+            }}
           >
             空
           </button>

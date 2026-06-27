@@ -11,6 +11,19 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  --app-input-bg: #fff;
+  --app-input-border: #ccc;
+  --app-input-disabled-bg: #f0f0f0;
+  --app-btn-bg: #f0f0f0;
+  --app-btn-border: #aaa;
+  --app-muted: #666;
+  --app-error: #c00;
+  --app-warning: #996600;
+  --app-success: #080;
+  --app-hint: #555;
+  --app-link: #0055cc;
+  --app-q-color: #999;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -43,6 +56,19 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+    --app-input-bg: #252630;
+    --app-input-border: #45475a;
+    --app-input-disabled-bg: #1a1b25;
+    --app-btn-bg: #2e303a;
+    --app-btn-border: #45475a;
+    --app-muted: #9ca3af;
+    --app-error: #f87171;
+    --app-warning: #fbbf24;
+    --app-success: #4ade80;
+    --app-hint: #9ca3af;
+    --app-link: #60a5fa;
+    --app-q-color: #6b7280;
   }
 
   #social .button-icon {

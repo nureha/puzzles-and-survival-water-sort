@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
-import { solve } from './solver/bfs';
 import { validateTubes } from './solver/constraints';
-import { uiToInternal } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
+import type { WorkerOutMessage } from './solver/solver.worker';
 import './App.css';
 
 function makeEmptyTubes(count: number): UITube[] {
@@ -17,6 +16,13 @@ function App() {
   const [result, setResult] = useState<SolveResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [solving, setSolving] = useState(false);
+  const [solverStates, setSolverStates] = useState(0);
+  const workerRef = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    return () => { workerRef.current?.terminate(); };
+  }, []);
 
   const handleTubeCountChange = (delta: number) => {
     const next = Math.max(2, Math.min(20, tubeCount + delta));
@@ -47,9 +53,36 @@ function App() {
       return;
     }
     setError(null);
-    const state = tubes.map(uiToInternal);
-    setResult(solve(state));
+    setResult(null);
+    setSolving(true);
+    setSolverStates(0);
     setCompletedSteps(new Set());
+
+    workerRef.current?.terminate();
+    const worker = new Worker(
+      new URL('./solver/solver.worker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    workerRef.current = worker;
+
+    worker.onmessage = (e: MessageEvent<WorkerOutMessage>) => {
+      const msg = e.data;
+      if (msg.type === 'progress') {
+        setSolverStates(msg.states);
+      } else {
+        setResult(msg.result);
+        setSolving(false);
+        worker.terminate();
+      }
+    };
+
+    worker.onerror = () => {
+      setError('内部エラーが発生しました');
+      setSolving(false);
+      worker.terminate();
+    };
+
+    worker.postMessage(tubes);
   };
 
   const handleStepToggle = (index: number) => {
@@ -72,17 +105,30 @@ function App() {
             <span className="tube-count-value">{tubeCount}</span>
             <button onClick={() => handleTubeCountChange(1)} disabled={tubeCount >= 20}>+</button>
           </div>
-          <TubeGrid tubes={tubes} onChange={handleTubesChange} />
+          <div className="tube-grid-scroll">
+            <TubeGrid tubes={tubes} onChange={handleTubesChange} />
+          </div>
           {error && <p className="error">{error}</p>}
-          <button className="solve-btn" onClick={handleSolve}>解く</button>
+          <button className="solve-btn" onClick={handleSolve} disabled={solving}>
+            {solving ? '解いています...' : '解く'}
+          </button>
         </div>
         <div className="panel">
-          <SolutionList
-            result={result}
-            completedSteps={completedSteps}
-            onStepToggle={handleStepToggle}
-            onReset={() => setCompletedSteps(new Set())}
-          />
+          {solving ? (
+            <div className="solving">
+              <div className="progress-bar" />
+              <p className="solving-label">
+                探索中{solverStates > 0 ? `（${solverStates.toLocaleString()} 状態）` : ''}
+              </p>
+            </div>
+          ) : (
+            <SolutionList
+              result={result}
+              completedSteps={completedSteps}
+              onStepToggle={handleStepToggle}
+              onReset={() => setCompletedSteps(new Set())}
+            />
+          )}
         </div>
       </div>
     </div>
