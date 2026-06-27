@@ -3,7 +3,7 @@ import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
 import { SaveModal } from './components/SaveModal';
 import { useSaves } from './hooks/useSaves';
-import { validateTubes } from './solver/constraints';
+import { validateTubes, validateColorCounts } from './solver/constraints';
 import { applyMove } from './solver/bfs';
 import { uiToInternal, internalToUI } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
@@ -51,7 +51,7 @@ function App() {
 
   const handleTubesChange = (newTubes: UITube[]) => {
     setResult(null);
-    setError(null);
+    setError(validateColorCounts(newTubes));
     setCompletedCount(0);
 
     if (completedCount > 0 && initialTubes) {
