@@ -1,10 +1,10 @@
 export const LETTER_COLORS: Record<string, string> = {
   A: '#795548',
   B: '#e53935',
-  C: '#43a047',
+  C: '#4db6ac',
   D: '#0d47a1',
   E: '#f57c00',
-  F: '#2e7d32',
+  F: '#1b5e20',
   G: '#4e342e',
   H: '#8e24aa',
   I: '#f48fb1',
