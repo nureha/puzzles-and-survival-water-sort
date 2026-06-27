@@ -19,14 +19,15 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset, on
   }
 
   if (result.type === 'partial') {
+    const hasMovesBeforeHint = result.moves.length > 0;
     return (
       <div>
         <p style={{ color: 'var(--app-warning)', marginBottom: '0.5rem' }}>
-          一部の色が不明なため、完全な解を求められません
+          未判明の色が多いため推定解を求められませんでした。まず ? を判明させてください。
         </p>
-        {result.moves.length > 0 && (
+        {hasMovesBeforeHint && (
           <>
-            <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>既知の色で可能な手順:</p>
+            <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>? を露出させるための手順:</p>
             <MoveList
               moves={result.moves}
               completedCount={completedCount}
@@ -36,7 +37,11 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset, on
         )}
         {result.revealHints.length > 0 && (
           <div style={{ marginTop: '1rem' }}>
-            <p style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>? を判明させるには:</p>
+            <p style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
+              {hasMovesBeforeHint
+                ? '上記の手順を実行後、以下の操作で ? が判明します:'
+                : '? を判明させるには:'}
+            </p>
             <ul style={{ paddingLeft: '1.2rem' }}>
               {result.revealHints.map((hint, i) => (
                 <li key={i} style={{ fontSize: '0.9rem', color: 'var(--app-hint)', marginBottom: '4px' }}>

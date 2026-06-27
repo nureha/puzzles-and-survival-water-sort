@@ -282,9 +282,14 @@ function findRevealHints(state: PuzzleState): RevealHint[] {
     const count = topConsecutiveCount(tube);
     const belowIndex = tube.length - 1 - count;
     if (belowIndex >= 0 && tube[belowIndex] === '?') {
+      const dests = [];
+      for (let j = 0; j < state.length; j++) {
+        if (isValidMove(state, i, j)) dests.push(j + 1);
+      }
+      const destStr = dests.length > 0 ? `試験管${dests.join('・')}へ` : 'どこかへ';
       hints.push({
         tubeIndex: i,
-        description: `試験管${i + 1}のトップ（${top}）を動かすと ? が判明します`,
+        description: `試験管${i + 1}のトップ（${top}）を${destStr}動かすと ? が判明します`,
       });
     }
   }
