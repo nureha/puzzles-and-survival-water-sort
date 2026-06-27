@@ -46,14 +46,9 @@ export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
       onFocus={e => e.target.select()}
       disabled={disabled}
       maxLength={1}
+      className="tube-cell"
       style={{
-        width: '2.5rem',
-        height: '2.5rem',
-        textAlign: 'center',
-        fontSize: '1.2rem',
-        fontWeight: 'bold',
         border: `2px solid ${letterColor ?? 'var(--app-input-border)'}`,
-        borderRadius: '4px',
         background: bg,
         color: fg,
         cursor: disabled ? 'not-allowed' : 'text',

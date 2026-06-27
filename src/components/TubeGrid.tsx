@@ -22,7 +22,7 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+    <div className="tube-grid">
       {tubes.map((tube, ti) => (
         <div
           key={ti}
