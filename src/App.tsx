@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
+import { SaveModal } from './components/SaveModal';
+import { useSaves } from './hooks/useSaves';
 import { validateTubes } from './solver/constraints';
 import { applyMove } from './solver/bfs';
 import { uiToInternal, internalToUI } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
+import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
 import './App.css';
 
@@ -21,7 +24,9 @@ function App() {
   const [completedCount, setCompletedCount] = useState(0);
   const [solving, setSolving] = useState(false);
   const [solverStates, setSolverStates] = useState(0);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const workerRef = useRef<Worker | null>(null);
+  const { saves, save, remove, overwrite } = useSaves();
 
   useEffect(() => {
     return () => { workerRef.current?.terminate(); };
@@ -113,6 +118,14 @@ function App() {
     }
   };
 
+  const handleLoad = (entry: SaveEntry) => {
+    setTubeCount(entry.tubes.length);
+    setTubes(entry.tubes);
+    setResult(null);
+    setError(null);
+    resetProgress();
+  };
+
   const handleReset = () => {
     if (initialTubes) setTubes(initialTubes);
     setCompletedCount(0);
@@ -133,9 +146,14 @@ function App() {
             <TubeGrid tubes={tubes} onChange={handleTubesChange} />
           </div>
           {error && <p className="error">{error}</p>}
-          <button className="solve-btn" onClick={handleSolve} disabled={solving}>
-            {solving ? '解いています...' : '解く'}
-          </button>
+          <div className="action-row">
+            <button className="solve-btn" onClick={handleSolve} disabled={solving}>
+              {solving ? '解いています...' : '解く'}
+            </button>
+            <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
+              保存 / 読み込み
+            </button>
+          </div>
         </div>
         <div className="panel">
           {solving ? (
@@ -155,6 +173,18 @@ function App() {
           )}
         </div>
       </div>
+
+      {showSaveModal && (
+        <SaveModal
+          tubes={tubes}
+          saves={saves}
+          onSave={save}
+          onLoad={handleLoad}
+          onDelete={remove}
+          onOverwrite={overwrite}
+          onClose={() => setShowSaveModal(false)}
+        />
+      )}
     </div>
   );
 }

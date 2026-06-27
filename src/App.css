@@ -70,9 +70,14 @@ h1 {
   margin: 0.5rem 0;
 }
 
-.solve-btn {
-  display: block;
+.action-row {
+  display: flex;
+  gap: 0.75rem;
   margin-top: 1.5rem;
+  align-items: center;
+}
+
+.solve-btn {
   padding: 0.6rem 2rem;
   font-size: 1rem;
   background: #0055cc;
@@ -89,6 +94,226 @@ h1 {
 .solve-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.save-load-btn {
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  background: var(--app-btn-bg);
+  color: var(--text-h);
+  border: 1px solid var(--app-btn-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.save-load-btn:hover {
+  opacity: 0.8;
+}
+
+/* ── Modal ── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 480px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--text-h);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--app-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  background: var(--app-btn-bg);
+}
+
+.modal-section {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-section:last-child {
+  border-bottom: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-section-title {
+  font-size: 0.8rem;
+  color: var(--app-muted);
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.save-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-name-input {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+  background: var(--app-input-bg);
+  color: var(--text-h);
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+}
+
+.save-name-input:focus {
+  outline: 2px solid var(--app-link);
+  outline-offset: -1px;
+}
+
+.save-confirm-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  background: #0055cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.save-confirm-btn:hover:not(:disabled) {
+  background: #0044aa;
+}
+
+.save-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.saves-empty {
+  font-size: 0.9rem;
+  color: var(--app-muted);
+}
+
+.saves-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.save-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--app-btn-bg);
+  border-radius: 6px;
+}
+
+.save-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.save-entry-name {
+  font-size: 0.95rem;
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.save-entry-date {
+  font-size: 0.75rem;
+  color: var(--app-muted);
+}
+
+.save-entry-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.load-btn {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  background: #0055cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.load-btn:hover {
+  background: #0044aa;
+}
+
+.overwrite-btn {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  background: none;
+  color: var(--app-muted);
+  border: 1px solid var(--app-btn-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.overwrite-btn:hover {
+  background: var(--app-btn-bg);
+  color: var(--text-h);
+}
+
+.delete-btn {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+  background: none;
+  color: var(--app-error);
+  border: 1px solid var(--app-error);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background: var(--app-error);
+  color: white;
 }
 
 .solving {
