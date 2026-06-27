@@ -50,10 +50,26 @@ function App() {
   };
 
   const handleTubesChange = (newTubes: UITube[]) => {
-    setTubes(newTubes);
     setResult(null);
     setError(null);
-    resetProgress();
+    setCompletedCount(0);
+
+    if (completedCount > 0 && initialTubes) {
+      // ? cells are never moved by the solver, so their position in `tubes` matches
+      // their position in `initialTubes`. Propagate edits back to the initial state.
+      const updatedInitial = initialTubes.map((tube, ti) =>
+        tube.map((cell, li) => {
+          const prev = tubes[ti]?.[li];
+          const next = newTubes[ti]?.[li];
+          return prev !== next ? (next ?? '') : cell;
+        }) as UITube
+      );
+      setInitialTubes(updatedInitial);
+      setTubes(updatedInitial);
+    } else {
+      setTubes(newTubes);
+      setInitialTubes(null);
+    }
   };
 
   const handleSolve = () => {
