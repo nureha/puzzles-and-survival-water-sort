@@ -71,10 +71,10 @@ export function solve(initialState: PuzzleState): SolveResult {
         const next = applyMove(state, from, to);
         const key = stateKey(next);
         if (visited.has(key)) continue;
+        visited.add(key);
         const nextMoves = [...moves, { from, to }];
         if (isGoal(next)) return { type: 'solved', moves: nextMoves };
         if (visited.size >= MAX_STATES) return { type: 'unsolvable' };
-        visited.add(key);
         queue.push({ state: next, moves: nextMoves });
       }
     }
