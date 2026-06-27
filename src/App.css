@@ -316,6 +316,35 @@ h1 {
   color: white;
 }
 
+/* ── Clear save ── */
+
+.clear-save {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--app-success);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-success) 8%, transparent);
+}
+
+.clear-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--app-success);
+  margin: 0 0 0.5rem;
+}
+
+.clear-save-desc {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+}
+
+.clear-saved-msg {
+  font-size: 0.9rem;
+  color: var(--app-success);
+  margin: 0;
+}
+
 .solving {
   padding: 0.25rem 0;
 }

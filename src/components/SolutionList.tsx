@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { SolveResult, Move } from '../solver/types';
 
 interface SolutionListProps {
@@ -5,9 +6,10 @@ interface SolutionListProps {
   completedCount: number;
   onStepToggle: (index: number) => void;
   onReset: () => void;
+  onSaveInitial?: (name: string) => void;
 }
 
-export function SolutionList({ result, completedCount, onStepToggle, onReset }: SolutionListProps) {
+export function SolutionList({ result, completedCount, onStepToggle, onReset, onSaveInitial }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -49,6 +51,8 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset }: 
   }
 
   // type === 'solved'
+  const cleared = result.moves.length > 0 && completedCount === result.moves.length;
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -70,6 +74,51 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset }: 
           completedCount={completedCount}
           onStepToggle={onStepToggle}
         />
+      )}
+      {cleared && onSaveInitial && (
+        <ClearSaveForm onSave={onSaveInitial} />
+      )}
+    </div>
+  );
+}
+
+function ClearSaveForm({ onSave }: { onSave: (name: string) => void }) {
+  const [name, setName] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onSave(trimmed);
+    setSaved(true);
+  };
+
+  return (
+    <div className="clear-save">
+      <p className="clear-title">🎉 クリア！</p>
+      {saved ? (
+        <p className="clear-saved-msg">保存しました ✓</p>
+      ) : (
+        <>
+          <p className="clear-save-desc">初期状態を保存しておきますか？</p>
+          <div className="save-input-row">
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSave()}
+              placeholder="名前を入力（例: ステージ5-3）"
+              className="save-name-input"
+            />
+            <button
+              className="save-confirm-btn"
+              onClick={handleSave}
+              disabled={!name.trim()}
+            >
+              保存
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

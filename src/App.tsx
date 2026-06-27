@@ -169,6 +169,7 @@ function App() {
               completedCount={completedCount}
               onStepToggle={handleStepToggle}
               onReset={handleReset}
+              onSaveInitial={name => save(name, initialTubes ?? tubes)}
             />
           )}
         </div>
