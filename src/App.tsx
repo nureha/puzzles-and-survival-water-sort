@@ -221,6 +221,7 @@ function App() {
             <button onClick={() => handleTubeCountChange(1)} disabled={tubeCount >= 20}>+</button>
           </div>
           <ShapeLegend />
+          <hr className="legend-divider" />
           <div className="tube-grid-scroll">
             <TubeGrid tubes={tubes} onChange={handleTubesChange} />
           </div>

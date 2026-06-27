@@ -1,3 +1,5 @@
+import { LETTER_COLORS, textColorForBg } from './legendColors';
+
 const LEGEND: { letter: string; symbol: string; label: string; rotate?: number; fontSize?: string }[] = [
   { letter: 'A', symbol: '♥', label: 'ハート' },
   { letter: 'B', symbol: '♦', label: 'ダイヤ' },
@@ -18,17 +20,33 @@ export function ShapeLegend() {
     <div className="shape-legend">
       <p className="shape-legend-title">凡例</p>
       <div className="shape-legend-grid">
-        {LEGEND.map(({ letter, symbol, label, rotate, fontSize }) => (
-          <div key={letter} className="shape-entry" title={label}>
-            <span className="shape-entry-letter">{letter}</span>
-            <span
-              className="shape-entry-symbol"
-              style={(rotate || fontSize) ? { display: 'inline-block', transform: rotate ? `rotate(${rotate}deg)` : undefined, fontSize } : undefined}
+        {LEGEND.map(({ letter, symbol, label, rotate, fontSize }) => {
+          const color = LETTER_COLORS[letter] ?? '#888';
+          const fg = textColorForBg(color);
+          return (
+            <div
+              key={letter}
+              className="shape-entry"
+              title={label}
+              style={{ background: color, borderColor: color }}
             >
-              {symbol}
-            </span>
-          </div>
-        ))}
+              <span className="shape-entry-letter" style={{ color: fg === 'white' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.5)' }}>
+                {letter}
+              </span>
+              <span
+                className="shape-entry-symbol"
+                style={{
+                  color: fg,
+                  ...(rotate || fontSize
+                    ? { display: 'inline-block', transform: rotate ? `rotate(${rotate}deg)` : undefined, fontSize }
+                    : undefined),
+                }}
+              >
+                {symbol}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

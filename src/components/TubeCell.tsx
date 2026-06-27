@@ -1,3 +1,5 @@
+import { LETTER_COLORS, textColorForBg } from './legendColors';
+
 interface TubeCellProps {
   value: string;
   onChange: (value: string) => void;
@@ -25,6 +27,16 @@ export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
     if (raw === '' || raw === '?' || /^[A-Z]$/.test(raw)) onChange(raw);
   };
 
+  const letterColor = /^[A-Z]$/.test(value) ? LETTER_COLORS[value] : undefined;
+  const bg = disabled
+    ? 'var(--app-input-disabled-bg)'
+    : letterColor ?? 'var(--app-input-bg)';
+  const fg = value === '?'
+    ? 'var(--app-q-color)'
+    : letterColor
+      ? textColorForBg(letterColor)
+      : 'var(--text-h)';
+
   return (
     <input
       type="text"
@@ -40,10 +52,10 @@ export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
         textAlign: 'center',
         fontSize: '1.2rem',
         fontWeight: 'bold',
-        border: '2px solid var(--app-input-border)',
+        border: `2px solid ${letterColor ?? 'var(--app-input-border)'}`,
         borderRadius: '4px',
-        background: disabled ? 'var(--app-input-disabled-bg)' : 'var(--app-input-bg)',
-        color: value === '?' ? 'var(--app-q-color)' : 'var(--text-h)',
+        background: bg,
+        color: fg,
         cursor: disabled ? 'not-allowed' : 'text',
       }}
     />
