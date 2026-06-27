@@ -87,6 +87,7 @@ h1 {
 
 .action-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
   align-items: center;
@@ -100,6 +101,7 @@ h1 {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .solve-btn:hover:not(:disabled) {
@@ -119,6 +121,7 @@ h1 {
   border: 1px solid var(--app-btn-border);
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .save-load-btn:hover {
@@ -176,6 +179,13 @@ h1 {
 
 .modal-close:hover {
   background: var(--app-btn-bg);
+}
+
+.modal-storage-note {
+  font-size: 0.75rem;
+  color: var(--app-muted);
+  padding: 0.4rem 1.25rem 0;
+  margin: 0;
 }
 
 .modal-section {
@@ -487,5 +497,14 @@ h1 {
     height: 2.2rem;
     font-size: 1rem;
     box-sizing: border-box;
+  }
+
+  .action-row {
+    flex-direction: column;
+  }
+
+  .solve-btn,
+  .save-load-btn {
+    width: 100%;
   }
 }

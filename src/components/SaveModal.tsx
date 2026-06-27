@@ -30,6 +30,7 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
           <span className="modal-title">保存 / 読み込み</span>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
+        <p className="modal-storage-note">データはサーバーには送信・保存されません</p>
 
         <div className="modal-section">
           <p className="modal-section-title">現在の状態を保存</p>

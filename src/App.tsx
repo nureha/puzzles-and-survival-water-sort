@@ -233,9 +233,11 @@ function App() {
             <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
               保存 / 読み込み
             </button>
-            <button className="save-load-btn" onClick={handleCopyState}>
-              {copied ? 'コピーしました' : '状態をコピー'}
-            </button>
+            {window.location.hostname === 'localhost' && (
+              <button className="save-load-btn" onClick={handleCopyState}>
+                {copied ? 'コピーしました' : '状態をコピー'}
+              </button>
+            )}
           </div>
         </div>
         <div className="panel">
