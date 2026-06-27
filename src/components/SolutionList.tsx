@@ -2,12 +2,12 @@ import type { SolveResult, Move } from '../solver/types';
 
 interface SolutionListProps {
   result: SolveResult | null;
-  completedSteps: Set<number>;
+  completedCount: number;
   onStepToggle: (index: number) => void;
   onReset: () => void;
 }
 
-export function SolutionList({ result, completedSteps, onStepToggle, onReset }: SolutionListProps) {
+export function SolutionList({ result, completedCount, onStepToggle, onReset }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -27,7 +27,7 @@ export function SolutionList({ result, completedSteps, onStepToggle, onReset }: 
             <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>既知の色で可能な手順:</p>
             <MoveList
               moves={result.moves}
-              completedSteps={completedSteps}
+              completedCount={completedCount}
               onStepToggle={onStepToggle}
             />
           </>
@@ -55,7 +55,10 @@ export function SolutionList({ result, completedSteps, onStepToggle, onReset }: 
         <span style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>
           手順 ({result.moves.length}ステップ)
         </span>
-        <button onClick={onReset} style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}>
+        <button
+          onClick={onReset}
+          style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
+        >
           リセット
         </button>
       </div>
@@ -64,7 +67,7 @@ export function SolutionList({ result, completedSteps, onStepToggle, onReset }: 
       ) : (
         <MoveList
           moves={result.moves}
-          completedSteps={completedSteps}
+          completedCount={completedCount}
           onStepToggle={onStepToggle}
         />
       )}
@@ -74,20 +77,19 @@ export function SolutionList({ result, completedSteps, onStepToggle, onReset }: 
 
 function MoveList({
   moves,
-  completedSteps,
+  completedCount,
   onStepToggle,
 }: {
   moves: Move[];
-  completedSteps: Set<number>;
+  completedCount: number;
   onStepToggle: (i: number) => void;
 }) {
-  const nextStep = moves.findIndex((_, i) => !completedSteps.has(i));
-
   return (
     <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
       {moves.map((move, i) => {
-        const done = completedSteps.has(i);
-        const current = i === nextStep;
+        const done = i < completedCount;
+        const current = i === completedCount;
+        const disabled = i !== completedCount && i !== completedCount - 1;
         return (
           <li key={i}>
             <label
@@ -96,8 +98,8 @@ function MoveList({
                 alignItems: 'center',
                 gap: '0.5rem',
                 padding: '6px 4px',
-                cursor: 'pointer',
-                opacity: done ? 0.4 : 1,
+                cursor: disabled ? 'default' : 'pointer',
+                opacity: done && disabled ? 0.25 : done ? 0.4 : 1,
                 fontWeight: current ? 'bold' : 'normal',
                 color: current ? 'var(--app-link)' : 'var(--text)',
                 userSelect: 'none',
@@ -106,8 +108,9 @@ function MoveList({
               <input
                 type="checkbox"
                 checked={done}
+                disabled={disabled}
                 onChange={() => onStepToggle(i)}
-                style={{ cursor: 'pointer', flexShrink: 0 }}
+                style={{ cursor: disabled ? 'default' : 'pointer', flexShrink: 0 }}
               />
               <span style={{ textDecoration: done ? 'line-through' : 'none' }}>
                 {current ? '▶ ' : ''}

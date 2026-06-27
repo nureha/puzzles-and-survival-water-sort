@@ -1,8 +1,11 @@
 .app {
+  width: 100%;
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem;
   font-family: system-ui, sans-serif;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 h1 {
@@ -18,7 +21,7 @@ h1 {
 }
 
 .panel {
-  flex: 1;
+  flex: 0 0 calc(50% - 1.5rem);
   min-width: 0;
 }
 
@@ -27,7 +30,7 @@ h1 {
 }
 
 .tube-count-row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1.5rem;

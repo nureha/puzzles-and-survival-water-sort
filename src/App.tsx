@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
 import { validateTubes } from './solver/constraints';
+import { applyMove } from './solver/bfs';
+import { uiToInternal, internalToUI } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
 import type { WorkerOutMessage } from './solver/solver.worker';
 import './App.css';
@@ -13,9 +15,10 @@ function makeEmptyTubes(count: number): UITube[] {
 function App() {
   const [tubeCount, setTubeCount] = useState(3);
   const [tubes, setTubes] = useState<UITube[]>(makeEmptyTubes(3));
+  const [initialTubes, setInitialTubes] = useState<UITube[] | null>(null);
   const [result, setResult] = useState<SolveResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [completedCount, setCompletedCount] = useState(0);
   const [solving, setSolving] = useState(false);
   const [solverStates, setSolverStates] = useState(0);
   const workerRef = useRef<Worker | null>(null);
@@ -24,25 +27,28 @@ function App() {
     return () => { workerRef.current?.terminate(); };
   }, []);
 
+  const resetProgress = () => {
+    setCompletedCount(0);
+    setInitialTubes(null);
+  };
+
   const handleTubeCountChange = (delta: number) => {
     const next = Math.max(2, Math.min(20, tubeCount + delta));
     setTubeCount(next);
     setTubes(prev => {
-      if (next > prev.length) {
-        return [...prev, ...makeEmptyTubes(next - prev.length)];
-      }
+      if (next > prev.length) return [...prev, ...makeEmptyTubes(next - prev.length)];
       return prev.slice(0, next);
     });
     setResult(null);
     setError(null);
-    setCompletedSteps(new Set());
+    resetProgress();
   };
 
   const handleTubesChange = (newTubes: UITube[]) => {
     setTubes(newTubes);
     setResult(null);
     setError(null);
-    setCompletedSteps(new Set());
+    resetProgress();
   };
 
   const handleSolve = () => {
@@ -56,7 +62,8 @@ function App() {
     setResult(null);
     setSolving(true);
     setSolverStates(0);
-    setCompletedSteps(new Set());
+    setInitialTubes(tubes);
+    setCompletedCount(0);
 
     workerRef.current?.terminate();
     const worker = new Worker(
@@ -86,12 +93,29 @@ function App() {
   };
 
   const handleStepToggle = (index: number) => {
-    setCompletedSteps(prev => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
+    if (!result || !('moves' in result) || !initialTubes) return;
+    const moves = result.moves;
+
+    if (index === completedCount) {
+      setTubes(prev => {
+        const state = prev.map(uiToInternal);
+        const next = applyMove(state, moves[index].from, moves[index].to);
+        return next.map(internalToUI);
+      });
+      setCompletedCount(c => c + 1);
+    } else if (index === completedCount - 1) {
+      let state = initialTubes.map(uiToInternal);
+      for (let i = 0; i < index; i++) {
+        state = applyMove(state, moves[i].from, moves[i].to);
+      }
+      setTubes(state.map(internalToUI));
+      setCompletedCount(c => c - 1);
+    }
+  };
+
+  const handleReset = () => {
+    if (initialTubes) setTubes(initialTubes);
+    setCompletedCount(0);
   };
 
   return (
@@ -124,9 +148,9 @@ function App() {
           ) : (
             <SolutionList
               result={result}
-              completedSteps={completedSteps}
+              completedCount={completedCount}
               onStepToggle={handleStepToggle}
-              onReset={() => setCompletedSteps(new Set())}
+              onReset={handleReset}
             />
           )}
         </div>
