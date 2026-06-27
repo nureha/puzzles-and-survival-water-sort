@@ -5,7 +5,7 @@ import { SaveModal } from './components/SaveModal';
 import { ShapeLegend } from './components/ShapeLegend';
 import { useSaves } from './hooks/useSaves';
 import { validateTubes, validateColorCounts } from './solver/constraints';
-import { applyMove } from './solver/bfs';
+import { applyMove, isValidMove } from './solver/bfs';
 import { uiToInternal, internalToUI } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
@@ -51,26 +51,44 @@ function App() {
   };
 
   const handleTubesChange = (newTubes: UITube[]) => {
-    setResult(null);
     setError(validateColorCounts(newTubes));
-    setCompletedCount(0);
 
-    if (completedCount > 0 && initialTubes) {
-      // ? cells are never moved by the solver, so their position in `tubes` matches
-      // their position in `initialTubes`. Propagate edits back to the initial state.
-      const updatedInitial = initialTubes.map((tube, ti) =>
-        tube.map((cell, li) => {
-          const prev = tubes[ti]?.[li];
-          const next = newTubes[ti]?.[li];
-          return prev !== next ? (next ?? '') : cell;
-        }) as UITube
-      );
-      setInitialTubes(updatedInitial);
-      setTubes(updatedInitial);
-    } else {
-      setTubes(newTubes);
-      setInitialTubes(null);
+    // Compute new initial state (? propagation: map edits from mid-solution back to initial)
+    const updatedInitial: UITube[] = (completedCount > 0 && initialTubes)
+      ? initialTubes.map((tube, ti) =>
+          tube.map((cell, li) => {
+            const prev = tubes[ti]?.[li];
+            const next = newTubes[ti]?.[li];
+            return prev !== next ? (next ?? '') : cell;
+          }) as UITube
+        )
+      : newTubes;
+
+    // If a solution exists, check whether all its moves are still valid from the new initial state.
+    // If so, preserve the result and replay to the current progress position.
+    if (result && 'moves' in result) {
+      let state = updatedInitial.map(uiToInternal);
+      let valid = true;
+      for (const move of result.moves) {
+        if (!isValidMove(state, move.from, move.to)) { valid = false; break; }
+        state = applyMove(state, move.from, move.to);
+      }
+      if (valid) {
+        let midState = updatedInitial.map(uiToInternal);
+        for (let i = 0; i < completedCount; i++) {
+          midState = applyMove(midState, result.moves[i].from, result.moves[i].to);
+        }
+        setInitialTubes(updatedInitial);
+        setTubes(midState.map(internalToUI));
+        return;
+      }
     }
+
+    // Default: clear result and reset to the new initial state
+    setResult(null);
+    setCompletedCount(0);
+    setTubes(updatedInitial);
+    setInitialTubes(null);
   };
 
   const handleSolve = () => {
