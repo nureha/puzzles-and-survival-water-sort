@@ -123,3 +123,79 @@ describe('stateKey', () => {
     expect(stateKey(s1)).not.toBe(stateKey(s2));
   });
 });
+
+import { solve } from '../solver/bfs';
+
+describe('solve – phase 1 (no unknowns)', () => {
+  test('returns empty moves for an already-solved state', () => {
+    const state: PuzzleState = [['A', 'A', 'A', 'A'], ['B', 'B', 'B', 'B'], []];
+    const result = solve(state);
+    expect(result.type).toBe('solved');
+    if (result.type === 'solved') expect(result.moves).toEqual([]);
+  });
+
+  test('solves a simple 3-tube 2-color puzzle', () => {
+    // Internal bottom-to-top: tube0=[B,A,B,A], tube1=[A,B,A,B], tube2=[]
+    const state: PuzzleState = [
+      ['B', 'A', 'B', 'A'],
+      ['A', 'B', 'A', 'B'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('solved');
+  });
+
+  test('returns unsolvable when no buffer tube exists', () => {
+    // No empty tube, no solution possible
+    const state: PuzzleState = [
+      ['A', 'B', 'A', 'B'],
+      ['B', 'A', 'B', 'A'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('unsolvable');
+  });
+
+  test('solution moves applied to initial state reach goal', () => {
+    const initial: PuzzleState = [
+      ['B', 'A', 'B', 'A'],
+      ['A', 'B', 'A', 'B'],
+      [],
+    ];
+    const result = solve(initial);
+    expect(result.type).toBe('solved');
+    if (result.type !== 'solved') return;
+
+    let state = initial;
+    for (const move of result.moves) {
+      state = applyMove(state, move.from, move.to);
+    }
+    expect(isGoal(state)).toBe(true);
+  });
+});
+
+describe('solve – phase 2 (unknowns present)', () => {
+  test('returns partial result when ? is present', () => {
+    // tube0 internal: ['?','?','?','A'] → top=A, below=?
+    const state: PuzzleState = [
+      ['?', '?', '?', 'A'],
+      ['B', 'B', 'B', 'B'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+  });
+
+  test('reveal hint points to tube where moving top exposes ?', () => {
+    // tube0 internal: ['?','A'] → top=A, below=?
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['B', 'B', 'B', 'B'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.revealHints.length).toBeGreaterThan(0);
+    expect(result.revealHints[0].tubeIndex).toBe(0);
+  });
+});
