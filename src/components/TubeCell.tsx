@@ -17,6 +17,7 @@ export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
       type="text"
       value={value}
       onChange={handleChange}
+      onFocus={e => e.target.select()}
       disabled={disabled}
       maxLength={1}
       style={{
