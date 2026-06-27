@@ -341,6 +341,16 @@ h1 {
   color: white;
 }
 
+.help-link {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--app-link);
+}
+
+.help-link:hover {
+  text-decoration: underline;
+}
+
 .legend-divider {
   border: none;
   border-top: 1px solid var(--border);

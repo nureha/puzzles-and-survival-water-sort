@@ -226,6 +226,14 @@ function App() {
             <button onClick={() => handleTubeCountChange(-1)} disabled={tubeCount <= 2}>−</button>
             <span className="tube-count-value">{tubeCount}</span>
             <button onClick={() => handleTubeCountChange(1)} disabled={tubeCount >= 20}>+</button>
+            <a
+              className="help-link"
+              href="https://github.com/nureha/puzzles-and-survival-water-sort#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              使い方はこちら
+            </a>
           </div>
           <ShapeLegend />
           <hr className="legend-divider" />
