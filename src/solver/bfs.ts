@@ -193,6 +193,9 @@ function markSpeculativeMoves(initialState: PuzzleState, testState: PuzzleState,
     const src = testState[move.from];
     const count = topConsecutiveCount(src);
     const srcIsQ = isQ[move.from].slice(src.length - count).some(Boolean);
+    // Also speculative if the destination already has a ?-origin cell —
+    // pouring into that tube depends on the assumed color being correct.
+    const dstHasQ = isQ[move.to].some(Boolean);
 
     // Move the isQ flags along with the cells
     const nextIsQ = isQ.map(t => [...t]);
@@ -201,7 +204,7 @@ function markSpeculativeMoves(initialState: PuzzleState, testState: PuzzleState,
     isQ = nextIsQ;
 
     testState = applyMove(testState, move.from, move.to);
-    return { ...move, isSpeculative: srcIsQ };
+    return { ...move, isSpeculative: srcIsQ || dstHasQ };
   });
 }
 
