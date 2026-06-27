@@ -13,7 +13,7 @@ export function SolutionList({ result, completedSteps, onStepToggle, onReset }: 
   }
 
   if (result.type === 'unsolvable') {
-    return <p style={{ color: '#c00' }}>解が見つかりませんでした</p>;
+    return <p style={{ color: '#c00' }}>解が見つかりませんでした（入力内容を確認してください）</p>;
   }
 
   if (result.type === 'partial') {

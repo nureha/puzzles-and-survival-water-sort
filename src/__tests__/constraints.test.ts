@@ -15,7 +15,7 @@ describe('validateTubes', () => {
   test('returns error message when a color appears more than 4 times', () => {
     const tubes: UITube[] = [
       ['A', 'A', 'A', 'A'],
-      ['A', '', '', ''],
+      ['', '', '', 'A'], // empty at top (valid), A at bottom — 5th A total
       ['', '', '', ''],
     ];
     const result = validateTubes(tubes);
@@ -34,5 +34,22 @@ describe('validateTubes', () => {
 
   test('returns null for empty tube list', () => {
     expect(validateTubes([])).toBeNull();
+  });
+
+  test('returns error when non-empty cell appears after empty cell in same tube', () => {
+    const tubes: UITube[] = [
+      ['A', '', 'B', ''],
+      ['', '', '', ''],
+    ];
+    const result = validateTubes(tubes);
+    expect(result).not.toBeNull();
+  });
+
+  test('returns null for valid partial tube (empty at top, colors at bottom)', () => {
+    const tubes: UITube[] = [
+      ['', '', 'A', 'B'],
+      ['', '', '', ''],
+    ];
+    expect(validateTubes(tubes)).toBeNull();
   });
 });
