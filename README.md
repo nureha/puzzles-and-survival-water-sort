@@ -1,32 +1,26 @@
-# React + TypeScript + Vite
+# Water Sort Solver — パズルアンドサバイバル用
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+パズルアンドサバイバル（Puzzles & Survival）のウォーターソートパズルを解くWebアプリです。
 
-Currently, two official plugins are available:
+## 機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **A\*探索**による最短手順の自動算出
+- **推定解**：? セルを含む盤面でも色をランダムに仮定して解を試みる
+- **部分解**：推定が困難な場合、? を露出させるための最短手順をヒントとして提示
+- **凡例**：図形とアルファベットの対応表を常時表示（色付き）
+- **セーブ / ロード**：盤面を名前付きで保存し後から読み込める
+- **状態コピー**：現在の盤面と手順をクリップボードにコピー（不具合報告用）
 
-## React Compiler
+## 入力方法
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 各セルに A〜L のアルファベットを入力（凡例の図形と対応）
+- `?` で未判明の色を表す
+- `?` を入力したセル以降は自動的に `?` で埋まる
 
-## Expanding the Oxlint configuration
+## 開発
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # 開発サーバー起動（http://localhost:5432）
+npm run build    # プロダクションビルド（dist/）
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
