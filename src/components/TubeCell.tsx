@@ -5,17 +5,31 @@ interface TubeCellProps {
 }
 
 export function TubeCell({ value, onChange, disabled = false }: TubeCellProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      onChange('');
+      return;
+    }
+    if (e.key.length === 1) {
+      e.preventDefault();
+      const upper = e.key.toUpperCase();
+      if (upper === '?' || /^[A-Z]$/.test(upper)) onChange(upper);
+    }
+  };
+
+  // onChange handles paste; keyboard input is fully handled by onKeyDown
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.toUpperCase().slice(-1);
-    if (raw === '' || raw === '?' || /^[A-Z]$/.test(raw)) {
-      onChange(raw);
-    }
+    if (raw === '' || raw === '?' || /^[A-Z]$/.test(raw)) onChange(raw);
   };
 
   return (
     <input
       type="text"
       value={value}
+      onKeyDown={handleKeyDown}
       onChange={handleChange}
       onFocus={e => e.target.select()}
       disabled={disabled}
