@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
 import { SaveModal } from './components/SaveModal';
+import { ShapeLegend } from './components/ShapeLegend';
 import { useSaves } from './hooks/useSaves';
 import { validateTubes, validateColorCounts } from './solver/constraints';
 import { applyMove } from './solver/bfs';
@@ -158,6 +159,7 @@ function App() {
             <span className="tube-count-value">{tubeCount}</span>
             <button onClick={() => handleTubeCountChange(1)} disabled={tubeCount >= 20}>+</button>
           </div>
+          <ShapeLegend />
           <div className="tube-grid-scroll">
             <TubeGrid tubes={tubes} onChange={handleTubesChange} />
           </div>

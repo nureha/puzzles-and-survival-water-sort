@@ -316,6 +316,51 @@ h1 {
   color: white;
 }
 
+/* ── Shape Legend ── */
+
+.shape-legend {
+  margin: 1rem 0 1.25rem;
+}
+
+.shape-legend-title {
+  font-size: 0.8rem;
+  color: var(--app-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.6rem;
+}
+
+.shape-legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.shape-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--app-btn-border);
+  border-radius: 6px;
+  background: var(--app-btn-bg);
+  min-width: 2.4rem;
+}
+
+.shape-entry-letter {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--app-muted);
+  line-height: 1;
+}
+
+.shape-entry-symbol {
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-h);
+}
+
 /* ── Clear save ── */
 
 .clear-save {
