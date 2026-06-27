@@ -15,12 +15,6 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
     onChange(newTubes);
   };
 
-  const handleClear = (tubeIndex: number) => {
-    const newTubes = tubes.map(t => [...t] as UITube);
-    newTubes[tubeIndex] = ['', '', '', ''];
-    onChange(newTubes);
-  };
-
   return (
     <div className="tube-grid">
       {tubes.map((tube, ti) => (
@@ -38,21 +32,6 @@ export function TubeGrid({ tubes, onChange }: TubeGridProps) {
               disabled={ci > 0 && tube[ci - 1] === '?'}
             />
           ))}
-          <button
-            onClick={() => handleClear(ti)}
-            style={{
-              fontSize: '0.75rem',
-              padding: '2px 8px',
-              marginTop: '4px',
-              background: 'var(--app-btn-bg)',
-              border: '1px solid var(--app-btn-border)',
-              borderRadius: '4px',
-              color: 'var(--text-h)',
-              cursor: 'pointer',
-            }}
-          >
-            空
-          </button>
         </div>
       ))}
     </div>

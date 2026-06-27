@@ -28,11 +28,18 @@ function App() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const workerRef = useRef<Worker | null>(null);
+  const resultPanelRef = useRef<HTMLDivElement>(null);
   const { saves, save, remove, overwrite } = useSaves();
 
   useEffect(() => {
     return () => { workerRef.current?.terminate(); };
   }, []);
+
+  useEffect(() => {
+    if (solving && window.innerWidth <= 600) {
+      resultPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [solving]);
 
   const resetProgress = () => {
     setCompletedCount(0);
@@ -240,7 +247,7 @@ function App() {
             )}
           </div>
         </div>
-        <div className="panel">
+        <div className="panel" ref={resultPanelRef}>
           {solving ? (
             <div className="solving">
               <div className="progress-bar" />
