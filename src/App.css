@@ -410,6 +410,10 @@ h1 {
 .shape-entry-symbol {
   font-size: 1.4rem;
   line-height: 1;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-h);
 }
 
