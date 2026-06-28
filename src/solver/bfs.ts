@@ -105,6 +105,9 @@ class MinHeap<T> {
 const MAX_STATES = 1_000_000;
 const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
+// Heuristic weight for greedy fallback pass. w=1 is optimal A*; w>1 trades
+// optimality for speed, escaping flat-plateau boards that stall standard A*.
+const GREEDY_WEIGHT = 3;
 
 function firstEmptyIndex(state: PuzzleState): number {
   for (let i = 0; i < state.length; i++) {
@@ -117,13 +120,15 @@ function solveAstar(
   initialState: PuzzleState,
   maxStates: number,
   onProgress?: (n: number) => void,
+  w = 1,
 ): Move[] | null {
   type Node = { state: PuzzleState; moves: Move[]; g: number };
   const open = new MinHeap<Node>();
   const best = new Map<string, number>();
 
+  const initH = heuristic(initialState);
   best.set(stateKey(initialState), 0);
-  open.push({ state: initialState, moves: [], g: 0 }, heuristic(initialState));
+  open.push({ state: initialState, moves: [], g: 0 }, w * initH);
 
   while (open.size > 0 && best.size < maxStates) {
     if (onProgress && best.size % 10_000 === 0 && best.size > 0) onProgress(best.size);
@@ -149,7 +154,7 @@ function solveAstar(
         const newG = g + 1;
         if ((best.get(nextKey) ?? Infinity) <= newG) continue;
         best.set(nextKey, newG);
-        open.push({ state: next, moves: [...moves, { from, to }], g: newG }, newG + heuristic(next));
+        open.push({ state: next, moves: [...moves, { from, to }], g: newG }, newG + w * heuristic(next));
       }
     }
   }
@@ -256,7 +261,14 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
   }
 
   const moves = solveAstar(initialState, MAX_STATES, onProgress);
-  return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
+  if (moves) return { type: 'solved', moves };
+
+  // Standard A* hit the state limit without finding a solution.
+  // This happens on boards with a large flat-heuristic plateau (many states share
+  // the same f=g+h value). Retry with a weighted heuristic (w=GREEDY_WEIGHT) which
+  // makes the search more greedy, escaping the plateau at the cost of optimality.
+  const greedyMoves = solveAstar(initialState, MAX_STATES, onProgress, GREEDY_WEIGHT);
+  return greedyMoves ? { type: 'solved', moves: greedyMoves } : { type: 'unsolvable' };
 }
 
 function solvePartial(initialState: PuzzleState): SolveResult {
