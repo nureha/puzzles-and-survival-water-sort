@@ -10,8 +10,100 @@
 
 h1 {
   font-size: 1.5rem;
-  margin-bottom: 1.5rem;
+  margin: 0;
   color: var(--text-h);
+}
+
+.app-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.mode-toggle {
+  display: flex;
+  border: 1px solid var(--app-btn-border);
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+  background: var(--app-btn-bg);
+  color: var(--app-muted);
+  border: none;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: var(--app-link);
+  color: white;
+}
+
+.mode-btn:hover:not(.active) {
+  opacity: 0.8;
+}
+
+.sim-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.sim-move-count {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--text-h);
+  margin-right: 0.25rem;
+}
+
+.sim-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sim-moves-title {
+  font-size: 0.8rem;
+  color: var(--app-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.sim-move-btn {
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 0.9rem;
+  background: var(--app-btn-bg);
+  color: var(--text-h);
+  border: 1px solid var(--app-btn-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .sim-move-btn:hover {
+    border-color: var(--app-link);
+    color: var(--app-link);
+  }
+}
+
+.sim-move-btn:active {
+  border-color: var(--app-link);
+  color: var(--app-link);
+}
+
+.sim-move-color {
+  color: var(--app-muted);
+  font-size: 0.85rem;
 }
 
 .panels {
@@ -531,5 +623,16 @@ h1 {
   .solve-btn,
   .save-load-btn {
     width: 100%;
+  }
+
+  .save-entry {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .save-entry-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }

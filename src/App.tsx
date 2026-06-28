@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { TubeGrid } from './components/TubeGrid';
 import { SolutionList } from './components/SolutionList';
+import { SimulationPanel } from './components/SimulationPanel';
 import { SaveModal } from './components/SaveModal';
 import { ShapeLegend } from './components/ShapeLegend';
 import { useSaves } from './hooks/useSaves';
@@ -29,6 +30,8 @@ function App() {
   const [deepMode, setDeepMode] = useState(false);
   const [deepSolving, setDeepSolving] = useState(false);
   const [deepThreshold, setDeepThreshold] = useState(0);
+  const [mode, setMode] = useState<'solver' | 'simulation'>('solver');
+  const [simHistory, setSimHistory] = useState<UITube[][]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const workerRef = useRef<Worker | null>(null);
@@ -222,6 +225,32 @@ function App() {
     setCompletedCount(0);
   };
 
+  const handleModeChange = (next: 'solver' | 'simulation') => {
+    setMode(next);
+    setSimHistory([]);
+  };
+
+  const handleSimMove = (from: number, to: number) => {
+    setSimHistory(h => [...h, tubes]);
+    setTubes(prev => {
+      const next = prev.map(uiToInternal);
+      return applyMove(next, from, to).map(internalToUI);
+    });
+  };
+
+  const handleSimUndo = () => {
+    setSimHistory(h => {
+      const prev = h[h.length - 1];
+      setTubes(prev);
+      return h.slice(0, -1);
+    });
+  };
+
+  const handleSimReset = () => {
+    setTubes(simHistory[0]);
+    setSimHistory([]);
+  };
+
 
   const handleCopyState = () => {
     const formatTubes = (ts: UITube[]) =>
@@ -258,7 +287,23 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Water Sort Solver</h1>
+      <div className="app-top-row">
+        <h1>Water Sort Solver</h1>
+        <div className="mode-toggle">
+          <button
+            className={`mode-btn${mode === 'solver' ? ' active' : ''}`}
+            onClick={() => handleModeChange('solver')}
+          >
+            ソルバー
+          </button>
+          <button
+            className={`mode-btn${mode === 'simulation' ? ' active' : ''}`}
+            onClick={() => handleModeChange('simulation')}
+          >
+            シミュレーション
+          </button>
+        </div>
+      </div>
       <div className="panels">
         <div className="panel">
           <div className="tube-count-row">
@@ -281,30 +326,49 @@ function App() {
             <TubeGrid tubes={tubes} onChange={handleTubesChange} />
           </div>
           {error && <p className="error">{error}</p>}
-          <label className="deep-mode-label">
-            <input
-              type="checkbox"
-              checked={deepMode}
-              onChange={e => setDeepMode(e.target.checked)}
-            />
-            深い探索モード（最大120秒）
-          </label>
-          <div className="action-row">
-            <button className="solve-btn" onClick={handleSolve} disabled={solving}>
-              {solving ? '解いています...' : '解く'}
-            </button>
-            <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
-              保存 / 読み込み
-            </button>
-            {window.location.hostname === 'localhost' && (
-              <button className="save-load-btn" onClick={handleCopyState}>
-                {copied ? 'コピーしました' : '状態をコピー'}
+          {mode === 'solver' ? (
+            <>
+              <label className="deep-mode-label">
+                <input
+                  type="checkbox"
+                  checked={deepMode}
+                  onChange={e => setDeepMode(e.target.checked)}
+                />
+                深い探索モード（最大120秒）
+              </label>
+              <div className="action-row">
+                <button className="solve-btn" onClick={handleSolve} disabled={solving || deepSolving}>
+                  {solving || deepSolving ? '解いています...' : '解く'}
+                </button>
+                <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
+                  保存 / 読み込み
+                </button>
+                {window.location.hostname === 'localhost' && (
+                  <button className="save-load-btn" onClick={handleCopyState}>
+                    {copied ? 'コピーしました' : '状態をコピー'}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="action-row">
+              <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
+                保存 / 読み込み
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className="panel" ref={resultPanelRef}>
-          {solving ? (
+          {mode === 'simulation' ? (
+            <SimulationPanel
+              tubes={tubes}
+              moveCount={simHistory.length}
+              canUndo={simHistory.length > 0}
+              onMove={handleSimMove}
+              onUndo={handleSimUndo}
+              onReset={handleSimReset}
+            />
+          ) : solving ? (
             <div className="solving">
               <div className="progress-bar" />
               <p className="solving-label">
