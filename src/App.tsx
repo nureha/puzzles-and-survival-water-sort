@@ -7,7 +7,7 @@ import { ShapeLegend } from './components/ShapeLegend';
 import { useSaves } from './hooks/useSaves';
 import { validateTubes, validateColorCounts } from './solver/constraints';
 import { applyMove, isValidMove } from './solver/bfs';
-import { uiToInternal, internalToUI } from './solver/types';
+import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -16,6 +16,20 @@ import './App.css';
 
 function makeEmptyTubes(count: number): UITube[] {
   return Array.from({ length: count }, () => ['', '', '', ''] as UITube);
+}
+
+// For each tube with at least one entry, fill trailing empty slots with '?'.
+// Represents hidden liquid at the bottom that the user hasn't entered yet.
+function autoFillUnknown(tubes: UITube[]): UITube[] {
+  return tubes.map(tube => {
+    if (!tube.some(c => c !== '')) return tube;
+    const result = [...tube] as UITube;
+    for (let i = 3; i >= 0; i--) {
+      if (result[i] === '') result[i] = '?';
+      else break;
+    }
+    return normalizeTube(result);
+  });
 }
 
 function App() {
@@ -340,7 +354,10 @@ function App() {
                 <button className="solve-btn" onClick={handleSolve} disabled={solving || deepSolving}>
                   {solving || deepSolving ? '解いています...' : '解く'}
                 </button>
-                <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
+                <button className="save-load-btn" onClick={() => {
+                  handleTubesChange(autoFillUnknown(tubes));
+                  setShowSaveModal(true);
+                }}>
                   保存 / 読み込み
                 </button>
                 {window.location.hostname === 'localhost' && (
