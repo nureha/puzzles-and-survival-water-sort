@@ -21,7 +21,7 @@ export type RevealHint = {
 export type SolveResult =
   | { type: 'solved'; moves: Move[] }
   | { type: 'speculative'; moves: Move[] }
-  | { type: 'unsolvable' }
+  | { type: 'unsolvable'; deep?: boolean }
   | { type: 'partial'; moves: Move[]; revealHints: RevealHint[] };
 
 // UITube (top-to-bottom, length 4) → InternalTube (bottom-to-top stack)

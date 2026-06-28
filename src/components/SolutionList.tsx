@@ -15,7 +15,16 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset, on
   }
 
   if (result.type === 'unsolvable') {
-    return <p style={{ color: 'var(--app-error)' }}>解が見つかりませんでした（入力内容を確認してください）</p>;
+    return (
+      <div>
+        <p style={{ color: 'var(--app-error)', marginBottom: '0.5rem' }}>解が見つかりませんでした</p>
+        <p style={{ fontSize: '0.85rem', color: 'var(--app-muted)' }}>
+          {result.deep
+            ? 'アイテム（空き試験管の追加など）を使用しないとクリアできない盤面の可能性があります。'
+            : '深い探索モード（最大120秒）をオンにして再度「解く」を試してください。'}
+        </p>
+      </div>
+    );
   }
 
   if (result.type === 'partial') {

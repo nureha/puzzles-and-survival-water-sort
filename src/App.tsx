@@ -10,6 +10,7 @@ import { uiToInternal, internalToUI } from './solver/types';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
+import type { DeepWorkerOutMessage } from './solver/deep-solver.worker';
 import './App.css';
 
 function makeEmptyTubes(count: number): UITube[] {
@@ -25,21 +26,28 @@ function App() {
   const [completedCount, setCompletedCount] = useState(0);
   const [solving, setSolving] = useState(false);
   const [solverStates, setSolverStates] = useState(0);
+  const [deepMode, setDeepMode] = useState(false);
+  const [deepSolving, setDeepSolving] = useState(false);
+  const [deepThreshold, setDeepThreshold] = useState(0);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const workerRef = useRef<Worker | null>(null);
+  const deepWorkerRef = useRef<Worker | null>(null);
   const resultPanelRef = useRef<HTMLDivElement>(null);
   const { saves, save, remove, overwrite } = useSaves();
 
   useEffect(() => {
-    return () => { workerRef.current?.terminate(); };
+    return () => {
+      workerRef.current?.terminate();
+      deepWorkerRef.current?.terminate();
+    };
   }, []);
 
   useEffect(() => {
-    if (solving && window.innerWidth <= 600) {
+    if ((solving || deepSolving) && window.innerWidth <= 600) {
       resultPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [solving]);
+  }, [solving, deepSolving]);
 
   const resetProgress = () => {
     setCompletedCount(0);
@@ -117,11 +125,42 @@ function App() {
     }
     setError(null);
     setResult(null);
+    setCompletedCount(0);
+    setInitialTubes(tubes);
+
+    if (deepMode) {
+      workerRef.current?.terminate();
+      deepWorkerRef.current?.terminate();
+      setDeepSolving(true);
+      setDeepThreshold(0);
+
+      const deepWorker = new Worker(
+        new URL('./solver/deep-solver.worker.ts', import.meta.url),
+        { type: 'module' },
+      );
+      deepWorkerRef.current = deepWorker;
+
+      deepWorker.onmessage = (e: MessageEvent<DeepWorkerOutMessage>) => {
+        const msg = e.data;
+        if (msg.type === 'progress') {
+          setDeepThreshold(msg.threshold);
+        } else {
+          setDeepSolving(false);
+          setResult(msg.moves ? { type: 'solved', moves: msg.moves } : { type: 'unsolvable', deep: true });
+          deepWorker.terminate();
+        }
+      };
+      deepWorker.onerror = () => {
+        setDeepSolving(false);
+        setResult({ type: 'unsolvable', deep: true });
+        deepWorker.terminate();
+      };
+      deepWorker.postMessage(tubes);
+      return;
+    }
+
     setSolving(true);
     setSolverStates(0);
-    setInitialTubes(tubes);
-    setCompletedCount(0);
-
     workerRef.current?.terminate();
     const worker = new Worker(
       new URL('./solver/solver.worker.ts', import.meta.url),
@@ -183,6 +222,7 @@ function App() {
     setCompletedCount(0);
   };
 
+
   const handleCopyState = () => {
     const formatTubes = (ts: UITube[]) =>
       ts.map(t => {
@@ -241,6 +281,14 @@ function App() {
             <TubeGrid tubes={tubes} onChange={handleTubesChange} />
           </div>
           {error && <p className="error">{error}</p>}
+          <label className="deep-mode-label">
+            <input
+              type="checkbox"
+              checked={deepMode}
+              onChange={e => setDeepMode(e.target.checked)}
+            />
+            深い探索モード（最大120秒）
+          </label>
           <div className="action-row">
             <button className="solve-btn" onClick={handleSolve} disabled={solving}>
               {solving ? '解いています...' : '解く'}
@@ -261,6 +309,13 @@ function App() {
               <div className="progress-bar" />
               <p className="solving-label">
                 探索中{solverStates > 0 ? `（${solverStates.toLocaleString()} 状態）` : ''}
+              </p>
+            </div>
+          ) : deepSolving ? (
+            <div className="solving">
+              <div className="progress-bar" />
+              <p className="solving-label">
+                深く探索中...{deepThreshold > 0 ? `（深さ閾値: ${deepThreshold}）` : ''}
               </p>
             </div>
           ) : (

@@ -102,9 +102,16 @@ class MinHeap<T> {
   get size(): number { return this.heap.length; }
 }
 
-const MAX_STATES = 500_000;
-const SPECULATIVE_ATTEMPTS = 20;
+const MAX_STATES = 1_000_000;
+const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
+
+function firstEmptyIndex(state: PuzzleState): number {
+  for (let i = 0; i < state.length; i++) {
+    if (state[i].length === 0) return i;
+  }
+  return -1;
+}
 
 function solveAstar(
   initialState: PuzzleState,
@@ -125,9 +132,18 @@ function solveAstar(
     if ((best.get(stateKey(state)) ?? Infinity) < g) continue;
     if (isGoal(state)) return moves;
 
+    // Symmetry pruning: among equivalent empty tubes, only allow moves to the first one.
+    // Moving to any other empty tube yields a state equivalent up to tube-index relabeling.
+    const firstEmpty = firstEmptyIndex(state);
+
+    // Reversal pruning: never immediately undo the previous move.
+    const lastMove = moves.length > 0 ? moves[moves.length - 1] : null;
+
     for (let from = 0; from < state.length; from++) {
       for (let to = 0; to < state.length; to++) {
         if (!isValidMove(state, from, to)) continue;
+        if (state[to].length === 0 && to !== firstEmpty) continue;
+        if (lastMove && from === lastMove.to && to === lastMove.from) continue;
         const next = applyMove(state, from, to);
         const nextKey = stateKey(next);
         const newG = g + 1;
@@ -258,9 +274,11 @@ function solvePartial(initialState: PuzzleState): SolveResult {
       return { type: 'partial', moves, revealHints: hints };
     }
 
+    const firstEmpty = firstEmptyIndex(state);
     for (let from = 0; from < state.length; from++) {
       for (let to = 0; to < state.length; to++) {
         if (!isValidMove(state, from, to)) continue;
+        if (state[to].length === 0 && to !== firstEmpty) continue;
         const next = applyMove(state, from, to);
         const key = stateKey(next);
         if (visited.has(key)) continue;
@@ -271,6 +289,75 @@ function solvePartial(initialState: PuzzleState): SolveResult {
   }
 
   return { type: 'partial', moves: [], revealHints: findRevealHints(initialState) };
+}
+
+// IDA* (Iterative Deepening A*): explores arbitrarily deep without memory limits.
+// Returns the solution path, or null if unsolvable / timed out.
+export function solveDeep(
+  initialState: PuzzleState,
+  timeoutMs: number,
+  onProgress?: (threshold: number) => void,
+): Move[] | null {
+  const deadline = Date.now() + timeoutMs;
+  const path: Move[] = [];
+  const pathKeys = new Set<string>([stateKey(initialState)]);
+  let nodeCount = 0;
+  let timedOut = false;
+
+  function search(
+    state: PuzzleState,
+    g: number,
+    threshold: number,
+    lastFrom: number,
+    lastTo: number,
+  ): number | 'found' {
+    const f = g + heuristic(state);
+    if (f > threshold) return f;
+    if (isGoal(state)) return 'found';
+
+    nodeCount++;
+    if ((nodeCount & 0xfff) === 0) {
+      if (Date.now() > deadline) { timedOut = true; return Infinity; }
+    }
+
+    const firstEmpty = firstEmptyIndex(state);
+    let min = Infinity;
+
+    for (let from = 0; from < state.length; from++) {
+      for (let to = 0; to < state.length; to++) {
+        if (!isValidMove(state, from, to)) continue;
+        if (state[to].length === 0 && to !== firstEmpty) continue;
+        if (from === lastTo && to === lastFrom) continue;
+
+        const next = applyMove(state, from, to);
+        const nextKey = stateKey(next);
+        if (pathKeys.has(nextKey)) continue;
+
+        path.push({ from, to });
+        pathKeys.add(nextKey);
+        const result = search(next, g + 1, threshold, from, to);
+        if (result === 'found') return 'found';
+        path.pop();
+        pathKeys.delete(nextKey);
+
+        if (timedOut) return Infinity;
+        if ((result as number) < min) min = result as number;
+      }
+    }
+    return min;
+  }
+
+  let threshold = heuristic(initialState);
+
+  while (!timedOut && Date.now() < deadline) {
+    onProgress?.(threshold);
+    const result = search(initialState, 0, threshold, -1, -1);
+    if (result === 'found') return [...path];
+    if (result === Infinity) return null;
+    threshold = result as number;
+  }
+
+  return null;
 }
 
 function findRevealHints(state: PuzzleState): RevealHint[] {
