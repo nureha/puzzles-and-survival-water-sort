@@ -8,6 +8,7 @@ import { useSaves } from './hooks/useSaves';
 import { validateTubes, validateColorCounts } from './solver/constraints';
 import { applyMove, isValidMove } from './solver/bfs';
 import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
+import { inferUnknowns } from './solver/infer';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -355,7 +356,7 @@ function App() {
                   {solving || deepSolving ? '解いています...' : '解く'}
                 </button>
                 <button className="save-load-btn" onClick={() => {
-                  handleTubesChange(autoFillUnknown(tubes));
+                  handleTubesChange(inferUnknowns(autoFillUnknown(tubes)));
                   setShowSaveModal(true);
                 }}>
                   保存 / 読み込み
