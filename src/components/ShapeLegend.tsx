@@ -37,9 +37,8 @@ export function ShapeLegend() {
                 className="shape-entry-symbol"
                 style={{
                   color: fg,
-                  ...(rotate || fontSize
-                    ? { display: 'inline-block', transform: rotate ? `rotate(${rotate}deg)` : undefined, fontSize }
-                    : undefined),
+                  ...(rotate ? { transform: `rotate(${rotate}deg)` } : undefined),
+                  ...(fontSize ? { fontSize } : undefined),
                 }}
               >
                 {symbol}
