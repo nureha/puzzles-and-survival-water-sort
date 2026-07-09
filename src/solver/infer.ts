@@ -117,6 +117,9 @@ function collectUnknowns(tubes: UITube[]): UnknownPos[] {
 }
 
 // フェーズ2: バックトラッキング CSP。一意解のみ適用。
+// NOTE: 現在の制約モデル（チューブ内隣接 + グローバルカウントのみ）では、
+// Phase 1 が失敗した状態から Phase 2 が一意解を発見するシナリオは数学的に構成不能。
+// 将来クロスチューブ制約等が追加された際に有効になる伏線として保持している。
 function backtrack(
   tubes: UITube[],
   positions: UnknownPos[],

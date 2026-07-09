@@ -57,11 +57,11 @@ describe('inferUnknowns', () => {
 
   // フェーズ1/2: 残り3以下で隣接制約により一意解が確定する
   test('残り ? が 3 以下で一意解がある場合は自動入力する', () => {
-    // A×3, B×3, C×3 既知, ? が3個
-    // tube[0]: ['A','B','?','C'] → index2: prev=B, next=C → B,C 以外 → {A} のみ
-    // tube[1]: ['B','C','?','A'] → index2: prev=C, next=A → C,A 以外 → {B} のみ
-    // tube[2]: ['C','A','?','B'] → index2: prev=A, next=B → A,B 以外 → {C} のみ
-    // 残り: A=1, B=1, C=1 → 各 ? が 1 候補 → 全て確定
+    // フェーズ1: prev/next 両方の隣接制約で各 ? の候補が1色に絞られる
+    // tube[0][2]: prev=B, next=C → 候補A のみ → Phase 1 で確定
+    // tube[1][2]: prev=C, next=A → 候補B のみ → Phase 1 で確定
+    // tube[2][2]: prev=A, next=B → 候補C のみ → Phase 1 で確定
+    // NOTE: Phase 2 (backtracking) is not triggered — each ? resolves in Phase 1 alone.
     const tubes: UITube[] = [
       ['A', 'B', '?', 'C'],
       ['B', 'C', '?', 'A'],
@@ -80,7 +80,7 @@ describe('inferUnknowns', () => {
   });
 
   // フェーズ2: 残り3以下だが複数解あり → ? のまま
-  test('残り ? が 3 以下でも複数解があれば ? のまま残す', () => {
+  test('残り ? が矛盾状態（候補なし）の場合は ? のまま残す', () => {
     // A×2, B×2 既知, ? が4個 → 4個はフェーズ2の対象外
     // → フェーズ1で絞れないまま残る
     // 代わりに残り ? が2個で対称ケース: A×3, B×3 で残り A=1, B=1, ? が2個
