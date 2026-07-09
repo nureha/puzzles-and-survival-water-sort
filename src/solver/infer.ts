@@ -48,16 +48,8 @@ function applyAssignment(
   });
 }
 
-// 残り色のうち連続制約を無視した全候補を返す（フォールバック用）
-function possibleColorsNoAdj(rem: Record<string, number>): string[] {
-  return Object.entries(rem)
-    .filter(([, count]) => count > 0)
-    .map(([color]) => color);
-}
 
 // フェーズ1: 反復ドメイン縮小。候補が 1 つの ? を確定する。
-// パス1: 連続制約ありで候補が 1 つの ? を確定する（通常の推論）。
-// パス2: パス1で変化がなく、連続制約で候補が 0（不整合）で rem が唯一のとき確定する（フォールバック推論）。
 function iterativeReduce(tubes: UITube[]): UITube[] {
   let current = tubes;
   let changed = true;
@@ -66,8 +58,6 @@ function iterativeReduce(tubes: UITube[]): UITube[] {
     const known = countKnown(current);
     const rem = remaining(known);
     let next = current;
-
-    // パス1: 連続制約ありで候補が 1 つの ? を確定する
     for (let t = 0; t < current.length; t++) {
       for (let c = 0; c < 4; c++) {
         if (next[t][c] !== '?') continue;
@@ -79,26 +69,6 @@ function iterativeReduce(tubes: UITube[]): UITube[] {
         }
       }
     }
-
-    // パス2: パス1で変化がなかった場合のみ、連続制約なしフォールバック
-    if (!changed) {
-      for (let t = 0; t < current.length; t++) {
-        for (let c = 0; c < 4; c++) {
-          if (next[t][c] !== '?') continue;
-          const possible = possibleColors(next, t, c, rem);
-          if (possible.length === 0) {
-            // 連続制約なしでフォールバック
-            const fallback = possibleColorsNoAdj(rem);
-            if (fallback.length === 1) {
-              next = applyAssignment(next, t, c, fallback[0]);
-              rem[fallback[0]] = (rem[fallback[0]] ?? 1) - 1;
-              changed = true;
-            }
-          }
-        }
-      }
-    }
-
     current = next;
   }
   return current;
