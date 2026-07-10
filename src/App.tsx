@@ -399,6 +399,7 @@ function App() {
             <SolutionList
               result={result}
               completedCount={completedCount}
+              boardTubes={initialTubes ?? tubes}
               onStepToggle={handleStepToggle}
               onReset={handleReset}
               onSaveInitial={name => save(name, initialTubes ?? tubes)}
