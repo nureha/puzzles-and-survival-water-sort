@@ -636,3 +636,70 @@ h1 {
     justify-content: flex-end;
   }
 }
+
+/* ── Report board ── */
+
+.report-board {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--app-btn-border);
+  border-radius: 8px;
+  background: var(--app-btn-bg);
+}
+
+.report-board-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  background: #0055cc;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.report-board-btn:hover:not(:disabled) {
+  background: #0044aa;
+}
+
+.report-board-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-board-desc {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0 0 0.6rem;
+}
+
+.report-board-error {
+  font-size: 0.85rem;
+  color: var(--app-error);
+  margin: 0 0 0.6rem;
+}
+
+.report-board-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.report-board-cancel-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  background: none;
+  color: var(--app-muted);
+  border: 1px solid var(--app-btn-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.report-board-cancel-btn:hover:not(:disabled) {
+  background: var(--app-btn-bg);
+  color: var(--text-h);
+}
+
+.report-board-sent-msg {
+  font-size: 0.9rem;
+  color: var(--app-success);
+  margin: 0;
+}
