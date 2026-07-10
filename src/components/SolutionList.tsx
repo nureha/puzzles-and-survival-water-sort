@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import type { SolveResult, Move } from '../solver/types';
+import type { SolveResult, Move, UITube } from '../solver/types';
+import { ReportBoardSection } from './ReportBoardSection';
 
 interface SolutionListProps {
   result: SolveResult | null;
   completedCount: number;
+  boardTubes: UITube[];
   onStepToggle: (index: number) => void;
   onReset: () => void;
   onSaveInitial?: (name: string) => void;
 }
 
-export function SolutionList({ result, completedCount, onStepToggle, onReset, onSaveInitial }: SolutionListProps) {
+export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onSaveInitial }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -23,6 +25,7 @@ export function SolutionList({ result, completedCount, onStepToggle, onReset, on
             ? 'アイテム（空き試験管の追加など）を使用しないとクリアできない盤面の可能性があります。'
             : '深い探索モード（最大120秒）をオンにして再度「解く」を試してください。'}
         </p>
+        <ReportBoardSection tubes={boardTubes} deep={result.deep} />
       </div>
     );
   }

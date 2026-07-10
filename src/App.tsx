@@ -9,6 +9,7 @@ import { validateTubes, validateColorCounts } from './solver/constraints';
 import { applyMove, isValidMove } from './solver/bfs';
 import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import { inferUnknowns } from './solver/infer';
+import { formatTubes } from './report/formatBoard';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -268,12 +269,6 @@ function App() {
 
 
   const handleCopyState = () => {
-    const formatTubes = (ts: UITube[]) =>
-      ts.map(t => {
-        const cells = t.filter(c => c !== '');
-        return cells.length === 0 ? '空' : cells.join('');
-      }).join(', ');
-
     const lines: string[] = [];
 
     if (initialTubes) {
@@ -404,6 +399,7 @@ function App() {
             <SolutionList
               result={result}
               completedCount={completedCount}
+              boardTubes={initialTubes ?? tubes}
               onStepToggle={handleStepToggle}
               onReset={handleReset}
               onSaveInitial={name => save(name, initialTubes ?? tubes)}

@@ -30,6 +30,8 @@ jobs:
       - run: npm ci
 
       - run: npx tsc -b && npx vite build --base=/${{ github.event.repository.name }}/
+        env:
+          VITE_REPORT_ENDPOINT: ${{ secrets.VITE_REPORT_ENDPOINT }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
