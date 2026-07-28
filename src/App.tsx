@@ -10,6 +10,7 @@ import { applyMove, isValidMove } from './solver/bfs';
 import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import { inferUnknowns } from './solver/infer';
 import { formatTubes } from './report/formatBoard';
+import { detectReveal } from './reveal';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -46,6 +47,7 @@ function App() {
   const [deepMode, setDeepMode] = useState(false);
   const [deepSolving, setDeepSolving] = useState(false);
   const [deepThreshold, setDeepThreshold] = useState(0);
+  const [resultIsResearch, setResultIsResearch] = useState(false);
   const [mode, setMode] = useState<'solver' | 'simulation'>('solver');
   const [simHistory, setSimHistory] = useState<UITube[][]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -71,6 +73,7 @@ function App() {
   const resetProgress = () => {
     setCompletedCount(0);
     setInitialTubes(null);
+    setResultIsResearch(false);
   };
 
   const handleTubeCountChange = (delta: number) => {
@@ -87,6 +90,13 @@ function App() {
 
   const handleTubesChange = (newTubes: UITube[]) => {
     setError(validateColorCounts(newTubes));
+
+    // reveal（? を具体色へ確定入力）なら、解・進捗を消さず盤面へ反映するだけ。
+    // 推測が当たっていれば継続、外れていれば「この盤面から再探索」でリカバリする。
+    if (result && detectReveal(tubes, newTubes)) {
+      setTubes(newTubes);
+      return;
+    }
 
     // Compute new initial state (? propagation: map edits from mid-solution back to initial).
     // Diff must be done at the InternalTube (bottom-to-top) level, not UITube level.
@@ -135,8 +145,8 @@ function App() {
     setInitialTubes(null);
   };
 
-  const handleSolve = () => {
-    const validationError = validateTubes(tubes);
+  const runSolve = (board: UITube[], isResearch: boolean) => {
+    const validationError = validateTubes(board);
     if (validationError) {
       setError(validationError);
       setResult(null);
@@ -145,7 +155,8 @@ function App() {
     setError(null);
     setResult(null);
     setCompletedCount(0);
-    setInitialTubes(tubes);
+    setInitialTubes(board);
+    setResultIsResearch(isResearch);
 
     if (deepMode) {
       workerRef.current?.terminate();
@@ -174,7 +185,7 @@ function App() {
         setResult({ type: 'unsolvable', deep: true });
         deepWorker.terminate();
       };
-      deepWorker.postMessage(tubes);
+      deepWorker.postMessage(board);
       return;
     }
 
@@ -204,8 +215,10 @@ function App() {
       worker.terminate();
     };
 
-    worker.postMessage(tubes);
+    worker.postMessage(board);
   };
+
+  const handleSolve = () => runSolve(tubes, false);
 
   const handleStepToggle = (index: number) => {
     if (!result || !('moves' in result) || !initialTubes) return;
@@ -239,6 +252,18 @@ function App() {
   const handleReset = () => {
     if (initialTubes) setTubes(initialTubes);
     setCompletedCount(0);
+  };
+
+  const handleClear = () => {
+    const hasContent = tubes.some(tube => tube.some(c => c !== ''));
+    if (hasContent && !window.confirm('盤面をクリアしますか？現在の入力は失われます。')) return;
+    setTubes(makeEmptyTubes(tubeCount));
+    setResult(null);
+    setError(null);
+    setCompletedCount(0);
+    setInitialTubes(null);
+    setResultIsResearch(false);
+    setSimHistory([]);
   };
 
   const handleModeChange = (next: 'solver' | 'simulation') => {
@@ -361,12 +386,18 @@ function App() {
                     {copied ? 'コピーしました' : '状態をコピー'}
                   </button>
                 )}
+                <button className="save-load-btn" onClick={handleClear}>
+                  クリア
+                </button>
               </div>
             </>
           ) : (
             <div className="action-row">
               <button className="save-load-btn" onClick={() => setShowSaveModal(true)}>
                 保存 / 読み込み
+              </button>
+              <button className="save-load-btn" onClick={handleClear}>
+                クリア
               </button>
             </div>
           )}
@@ -402,6 +433,8 @@ function App() {
               boardTubes={initialTubes ?? tubes}
               onStepToggle={handleStepToggle}
               onReset={handleReset}
+              onResearch={() => runSolve(tubes, true)}
+              isResearch={resultIsResearch}
             />
           )}
         </div>
