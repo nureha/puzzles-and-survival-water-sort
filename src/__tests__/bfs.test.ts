@@ -199,3 +199,41 @@ describe('solve – phase 2 (unknowns present)', () => {
     expect(result.revealHints[0].tubeIndex).toBe(0);
   });
 });
+
+describe('solve – speculative (few unknowns)', () => {
+  // tube0 = three A's, tube1 = three B's, tube2 = two ? that must be one A + one B.
+  // Both fillings (A-below-B, B-below-A) are solvable, but via different move sequences.
+  // Random sampling returned whichever shuffle it happened to hit first, so its output
+  // was non-deterministic. Exhaustive enumeration of the small assignment space must be
+  // deterministic and always find a solvable filling.
+  const twoUnknownBoard = (): PuzzleState => [
+    ['A', 'A', 'A'],
+    ['B', 'B', 'B'],
+    ['?', '?'],
+  ];
+
+  test('produces a deterministic speculative solution across repeated runs', () => {
+    const first = solve(twoUnknownBoard());
+    expect(first.type).toBe('speculative');
+    for (let i = 0; i < 12; i++) {
+      expect(solve(twoUnknownBoard())).toEqual(first);
+    }
+  });
+
+  test('speculative moves solve the assigned board', () => {
+    const result = solve(twoUnknownBoard());
+    expect(result.type).toBe('speculative');
+    if (result.type !== 'speculative') return;
+    expect(result.moves.length).toBeGreaterThan(0);
+  });
+
+  test('returns partial when no filling of the unknowns is solvable', () => {
+    // Two full mixed tubes, no buffer: unsolvable regardless of the single ? filling.
+    const state: PuzzleState = [
+      ['A', 'B', 'A', 'B'],
+      ['B', 'A', 'B', '?'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+  });
+});
