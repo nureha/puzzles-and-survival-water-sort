@@ -8,10 +8,12 @@ interface SolutionListProps {
   boardTubes: UITube[];
   onStepToggle: (index: number) => void;
   onReset: () => void;
+  onResearch?: () => void;
+  isResearch?: boolean;
   onSaveInitial?: (name: string) => void;
 }
 
-export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onSaveInitial }: SolutionListProps) {
+export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onResearch, isResearch, onSaveInitial }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -19,13 +21,27 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
   if (result.type === 'unsolvable') {
     return (
       <div>
-        <p style={{ color: 'var(--app-error)', marginBottom: '0.5rem' }}>解が見つかりませんでした</p>
-        <p style={{ fontSize: '0.85rem', color: 'var(--app-muted)' }}>
-          {result.deep
-            ? 'アイテム（空き試験管の追加など）を使用しないとクリアできない盤面の可能性があります。'
-            : '深い探索モード（最大120秒）をオンにして再度「解く」を試してください。'}
-        </p>
-        <ReportBoardSection tubes={boardTubes} deep={result.deep} />
+        {isResearch ? (
+          <>
+            <p style={{ color: 'var(--app-warning)', marginBottom: '0.5rem' }}>
+              この盤面（手順の途中）からは解が見つかりませんでした。
+            </p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--app-muted)' }}>
+              推測した色が実際と違ったか、途中で詰みに入った可能性があります。手順のチェックを戻すか、判明した色を見直して再探索してください。パズル自体はアイテムなしで解ける可能性があります。
+            </p>
+          </>
+        ) : (
+          <>
+            <p style={{ color: 'var(--app-error)', marginBottom: '0.5rem' }}>解が見つかりませんでした</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--app-muted)' }}>
+              {result.deep
+                ? 'アイテム（空き試験管の追加など）を使用しないとクリアできない盤面の可能性があります。'
+                : '深い探索モード（最大120秒）をオンにして再度「解く」を試してください。'}
+            </p>
+            <ReportBoardSection tubes={boardTubes} deep={result.deep} />
+          </>
+        )}
+        {onResearch && <ResearchButton onResearch={onResearch} />}
       </div>
     );
   }
@@ -63,6 +79,7 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
             </ul>
           </div>
         )}
+        {onResearch && <ResearchButton onResearch={onResearch} />}
       </div>
     );
   }
@@ -82,12 +99,22 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
         <span style={{ fontWeight: 'bold', color: 'var(--text-h)' }}>
           手順 ({result.moves.length}ステップ)
         </span>
-        <button
-          onClick={onReset}
-          style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
-        >
-          リセット
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {onResearch && (
+            <button
+              onClick={onResearch}
+              style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
+            >
+              この盤面から再探索
+            </button>
+          )}
+          <button
+            onClick={onReset}
+            style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
+          >
+            リセット
+          </button>
+        </div>
       </div>
       {result.moves.length === 0 ? (
         <p style={{ color: 'var(--app-success)' }}>すでに解けています！</p>
@@ -144,6 +171,17 @@ function ClearSaveForm({ onSave }: { onSave: (name: string) => void }) {
         </>
       )}
     </div>
+  );
+}
+
+function ResearchButton({ onResearch }: { onResearch: () => void }) {
+  return (
+    <button
+      onClick={onResearch}
+      style={{ marginTop: '0.75rem', fontSize: '0.85rem', padding: '4px 12px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
+    >
+      この盤面から再探索
+    </button>
   );
 }
 
