@@ -198,4 +198,62 @@ describe('solve – phase 2 (unknowns present)', () => {
     expect(result.revealHints.length).toBeGreaterThan(0);
     expect(result.revealHints[0].tubeIndex).toBe(0);
   });
+
+  test('partial の手順は ? を露出させる手で終わる', () => {
+    // tube0 internal ['?','A'] → top=A, below=?; tube2（空）が唯一の有効な移動先
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['B', 'B', 'B', 'B'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    const revealTube = result.revealHints[0].tubeIndex;
+    // 最後の手は対象チューブから動かす露出手
+    const last = result.moves[result.moves.length - 1];
+    expect(last.from).toBe(revealTube);
+    // 全手を適用すると対象チューブのトップが ? になる（露出）
+    let s: PuzzleState = state;
+    for (const m of result.moves) s = applyMove(s, m.from, m.to);
+    expect(s[revealTube][s[revealTube].length - 1]).toBe('?');
+  });
+});
+
+describe('solve – speculative (few unknowns)', () => {
+  // tube0 = three A's, tube1 = three B's, tube2 = two ? that must be one A + one B.
+  // Both fillings (A-below-B, B-below-A) are solvable, but via different move sequences.
+  // Random sampling returned whichever shuffle it happened to hit first, so its output
+  // was non-deterministic. Exhaustive enumeration of the small assignment space must be
+  // deterministic and always find a solvable filling.
+  const twoUnknownBoard = (): PuzzleState => [
+    ['A', 'A', 'A'],
+    ['B', 'B', 'B'],
+    ['?', '?'],
+  ];
+
+  test('produces a deterministic speculative solution across repeated runs', () => {
+    const first = solve(twoUnknownBoard());
+    expect(first.type).toBe('speculative');
+    for (let i = 0; i < 12; i++) {
+      expect(solve(twoUnknownBoard())).toEqual(first);
+    }
+  });
+
+  test('speculative moves solve the assigned board', () => {
+    const result = solve(twoUnknownBoard());
+    expect(result.type).toBe('speculative');
+    if (result.type !== 'speculative') return;
+    expect(result.moves.length).toBeGreaterThan(0);
+  });
+
+  test('returns partial when no filling of the unknowns is solvable', () => {
+    // Two full mixed tubes, no buffer: unsolvable regardless of the single ? filling.
+    const state: PuzzleState = [
+      ['A', 'B', 'A', 'B'],
+      ['B', 'A', 'B', '?'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+  });
 });

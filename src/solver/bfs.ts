@@ -105,6 +105,11 @@ class MinHeap<T> {
 const MAX_STATES = 1_000_000;
 const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
+// When the ? cells admit at most this many distinct color fillings, enumerate all of
+// them at full solver strength instead of random sampling. 24 = 4! covers up to four
+// distinct-color unknowns (the typical late-game residue), while keeping worst-case
+// work bounded. Larger spaces fall back to random sampling.
+const EXHAUSTIVE_PERM_LIMIT = 24;
 // Heuristic weight for greedy fallback pass. w=1 is optimal A*; w>1 trades
 // optimality for speed, escaping flat-plateau boards that stall standard A*.
 const GREEDY_WEIGHT = 3;
@@ -121,7 +126,7 @@ function solveAstar(
   maxStates: number,
   onProgress?: (n: number) => void,
   w = 1,
-): Move[] | null {
+): { moves: Move[] | null; states: number } {
   type Node = { state: PuzzleState; moves: Move[]; g: number };
   const open = new MinHeap<Node>();
   const best = new Map<string, number>();
@@ -135,7 +140,7 @@ function solveAstar(
 
     const { state, moves, g } = open.pop()!;
     if ((best.get(stateKey(state)) ?? Infinity) < g) continue;
-    if (isGoal(state)) return moves;
+    if (isGoal(state)) return { moves, states: best.size };
 
     // Symmetry pruning: among equivalent empty tubes, only allow moves to the first one.
     // Moving to any other empty tube yields a state equivalent up to tube-index relabeling.
@@ -159,7 +164,20 @@ function solveAstar(
     }
   }
 
-  return null;
+  return { moves: null, states: best.size };
+}
+
+// Full-strength solve of a fully-known board: optimal A* first, then a greedy
+// weighted pass to escape flat-heuristic plateaus that stall standard A*.
+function solveConcrete(
+  state: PuzzleState,
+  maxStates: number,
+  onProgress?: (n: number) => void,
+): { moves: Move[] | null; states: number } {
+  const optimal = solveAstar(state, maxStates, onProgress);
+  if (optimal.moves) return optimal;
+  const greedy = solveAstar(state, maxStates, onProgress, GREEDY_WEIGHT);
+  return { moves: greedy.moves, states: optimal.states + greedy.states };
 }
 
 // Returns pool of colors that must fill the ? positions, or null if counts are inconsistent.
@@ -196,6 +214,42 @@ function applyAssignment(state: PuzzleState, pool: string[]): PuzzleState {
   return state.map(tube =>
     tube.map(cell => (cell === '?' ? pool[idx++] : cell))
   );
+}
+
+// Enumerates every distinct ordering of the color pool, up to `limit`. Returns null if
+// more than `limit` distinct orderings exist (caller should sample randomly instead).
+// Colors are visited in sorted order so the enumeration — and thus the chosen
+// speculative filling — is deterministic.
+function enumerateAssignments(pool: string[], limit: number): string[][] | null {
+  const counts = new Map<string, number>();
+  for (const color of pool) counts.set(color, (counts.get(color) ?? 0) + 1);
+  const colors = [...counts.keys()].sort();
+
+  const result: string[][] = [];
+  const current: string[] = [];
+  let overflow = false;
+
+  function recurse(): void {
+    if (overflow) return;
+    if (current.length === pool.length) {
+      if (result.length >= limit) { overflow = true; return; }
+      result.push([...current]);
+      return;
+    }
+    for (const color of colors) {
+      const n = counts.get(color)!;
+      if (n === 0) continue;
+      counts.set(color, n - 1);
+      current.push(color);
+      recurse();
+      current.pop();
+      counts.set(color, n);
+      if (overflow) return;
+    }
+  }
+
+  recurse();
+  return overflow ? null : result;
 }
 
 // Tracks which moves touch cells that originated from a ? position.
@@ -239,10 +293,38 @@ function solveSpeculative(
   const pool = buildColorPool(initialState);
   if (!pool) return null;
 
+  // Few unknowns: exhaustively try every distinct filling at full solver strength
+  // (MAX_STATES + greedy fallback). Guarantees a solvable filling is found if one exists
+  // — matching what manually entering the colors would produce — and is deterministic.
+  const assignments = enumerateAssignments(pool, EXHAUSTIVE_PERM_LIMIT);
+  if (assignments) {
+    // Shared budget across all fillings: the common case (a solvable filling
+    // among the first few) stays full-strength, while a hard board where no
+    // filling solves is bounded to ≤2×MAX_STATES total (each solveConcrete's
+    // optimal+greedy passes each take the remaining budget) instead of 24×MAX_STATES.
+    let budget = MAX_STATES;
+    let explored = 0;
+    for (const assignment of assignments) {
+      if (budget <= 0) break;
+      const testState = applyAssignment(initialState, assignment);
+      const base = explored;
+      const { moves, states } = solveConcrete(testState, budget, n => onProgress?.(base + n));
+      explored += states;
+      budget -= states;
+      if (moves) {
+        const markedMoves = markSpeculativeMoves(initialState, testState, moves);
+        return { type: 'speculative', moves: markedMoves };
+      }
+    }
+    return null;
+  }
+
+  // Too many unknowns to enumerate: sample random fillings with a lighter per-attempt
+  // budget to bound total work.
   for (let attempt = 0; attempt < SPECULATIVE_ATTEMPTS; attempt++) {
     const assignment = fisherYates(pool);
     const testState = applyAssignment(initialState, assignment);
-    const moves = solveAstar(testState, SPECULATIVE_MAX_STATES, onProgress);
+    const { moves } = solveAstar(testState, SPECULATIVE_MAX_STATES, onProgress);
     if (moves) {
       const markedMoves = markSpeculativeMoves(initialState, testState, moves);
       return { type: 'speculative', moves: markedMoves };
@@ -260,15 +342,34 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
     return solvePartial(initialState);
   }
 
-  const moves = solveAstar(initialState, MAX_STATES, onProgress);
-  if (moves) return { type: 'solved', moves };
+  const { moves } = solveConcrete(initialState, MAX_STATES, onProgress);
+  return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
+}
 
-  // Standard A* hit the state limit without finding a solution.
-  // This happens on boards with a large flat-heuristic plateau (many states share
-  // the same f=g+h value). Retry with a weighted heuristic (w=GREEDY_WEIGHT) which
-  // makes the search more greedy, escaping the plateau at the cost of optimality.
-  const greedyMoves = solveAstar(initialState, MAX_STATES, onProgress, GREEDY_WEIGHT);
-  return greedyMoves ? { type: 'solved', moves: greedyMoves } : { type: 'unsolvable' };
+function firstValidDest(state: PuzzleState, from: number): number {
+  for (let j = 0; j < state.length; j++) {
+    if (isValidMove(state, from, j)) return j;
+  }
+  return -1;
+}
+
+// Builds a partial result whose moves END with the ?-exposing move (moving the known
+// block sitting directly on top of a ?), so the entire reveal sequence is checkable in
+// the UI. After completing the steps the ? is at the top; the user enters the revealed
+// color and re-searches from that (correct) board. Both path and exposing moves only
+// touch KNOWN cells, so replaying them on the ?-board is exact.
+function partialWithReveal(state: PuzzleState, pathMoves: Move[], hints: RevealHint[]): SolveResult {
+  if (hints.length === 0) return { type: 'partial', moves: pathMoves, revealHints: [] };
+  const h = hints[0];
+  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex) };
+  return {
+    type: 'partial',
+    moves: [...pathMoves, exposeMove],
+    revealHints: [{
+      tubeIndex: h.tubeIndex,
+      description: `手順をすべて実行すると試験管${h.tubeIndex + 1}の ? が上に出ます。判明した色を入力して「この盤面から再探索」を押してください。`,
+    }],
+  };
 }
 
 function solvePartial(initialState: PuzzleState): SolveResult {
@@ -283,7 +384,7 @@ function solvePartial(initialState: PuzzleState): SolveResult {
     // BFS guarantees this is the shortest path to any such state.
     const hints = findRevealHints(state);
     if (hints.length > 0) {
-      return { type: 'partial', moves, revealHints: hints };
+      return partialWithReveal(state, moves, hints);
     }
 
     const firstEmpty = firstEmptyIndex(state);
@@ -300,7 +401,7 @@ function solvePartial(initialState: PuzzleState): SolveResult {
     }
   }
 
-  return { type: 'partial', moves: [], revealHints: findRevealHints(initialState) };
+  return partialWithReveal(initialState, [], findRevealHints(initialState));
 }
 
 // IDA* (Iterative Deepening A*): explores arbitrarily deep without memory limits.
