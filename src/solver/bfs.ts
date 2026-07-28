@@ -300,7 +300,8 @@ function solveSpeculative(
   if (assignments) {
     // Shared budget across all fillings: the common case (a solvable filling
     // among the first few) stays full-strength, while a hard board where no
-    // filling solves is bounded to ~MAX_STATES total instead of 24×MAX_STATES.
+    // filling solves is bounded to ≤2×MAX_STATES total (each solveConcrete's
+    // optimal+greedy passes each take the remaining budget) instead of 24×MAX_STATES.
     let budget = MAX_STATES;
     let explored = 0;
     for (const assignment of assignments) {
