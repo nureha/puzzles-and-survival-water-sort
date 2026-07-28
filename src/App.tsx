@@ -93,6 +93,8 @@ function App() {
 
     // reveal（? を具体色へ確定入力）なら、解・進捗を消さず盤面へ反映するだけ。
     // 推測が当たっていれば継続、外れていれば「この盤面から再探索」でリカバリする。
+    // 注: initialTubes は ? を保持したまま。ステップ戻し/リセットで判明色が再び ? に戻るのは
+    //     仕様（reveal 色を元レイアウト位置へ埋め戻さない）。
     if (result && detectReveal(tubes, newTubes)) {
       setTubes(newTubes);
       return;

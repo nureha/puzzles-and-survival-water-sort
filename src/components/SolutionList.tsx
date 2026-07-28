@@ -98,7 +98,7 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
           手順 ({result.moves.length}ステップ)
         </span>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {onResearch && (
+          {onResearch && isSpeculative && (
             <button
               onClick={onResearch}
               style={{ fontSize: '0.8rem', padding: '2px 10px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}

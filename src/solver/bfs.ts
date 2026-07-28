@@ -126,7 +126,7 @@ function solveAstar(
   maxStates: number,
   onProgress?: (n: number) => void,
   w = 1,
-): Move[] | null {
+): { moves: Move[] | null; states: number } {
   type Node = { state: PuzzleState; moves: Move[]; g: number };
   const open = new MinHeap<Node>();
   const best = new Map<string, number>();
@@ -140,7 +140,7 @@ function solveAstar(
 
     const { state, moves, g } = open.pop()!;
     if ((best.get(stateKey(state)) ?? Infinity) < g) continue;
-    if (isGoal(state)) return moves;
+    if (isGoal(state)) return { moves, states: best.size };
 
     // Symmetry pruning: among equivalent empty tubes, only allow moves to the first one.
     // Moving to any other empty tube yields a state equivalent up to tube-index relabeling.
@@ -164,7 +164,7 @@ function solveAstar(
     }
   }
 
-  return null;
+  return { moves: null, states: best.size };
 }
 
 // Full-strength solve of a fully-known board: optimal A* first, then a greedy
@@ -173,10 +173,11 @@ function solveConcrete(
   state: PuzzleState,
   maxStates: number,
   onProgress?: (n: number) => void,
-): Move[] | null {
+): { moves: Move[] | null; states: number } {
   const optimal = solveAstar(state, maxStates, onProgress);
-  if (optimal) return optimal;
-  return solveAstar(state, maxStates, onProgress, GREEDY_WEIGHT);
+  if (optimal.moves) return optimal;
+  const greedy = solveAstar(state, maxStates, onProgress, GREEDY_WEIGHT);
+  return { moves: greedy.moves, states: optimal.states + greedy.states };
 }
 
 // Returns pool of colors that must fill the ? positions, or null if counts are inconsistent.
@@ -297,9 +298,18 @@ function solveSpeculative(
   // — matching what manually entering the colors would produce — and is deterministic.
   const assignments = enumerateAssignments(pool, EXHAUSTIVE_PERM_LIMIT);
   if (assignments) {
+    // Shared budget across all fillings: the common case (a solvable filling
+    // among the first few) stays full-strength, while a hard board where no
+    // filling solves is bounded to ~MAX_STATES total instead of 24×MAX_STATES.
+    let budget = MAX_STATES;
+    let explored = 0;
     for (const assignment of assignments) {
+      if (budget <= 0) break;
       const testState = applyAssignment(initialState, assignment);
-      const moves = solveConcrete(testState, MAX_STATES, onProgress);
+      const base = explored;
+      const { moves, states } = solveConcrete(testState, budget, n => onProgress?.(base + n));
+      explored += states;
+      budget -= states;
       if (moves) {
         const markedMoves = markSpeculativeMoves(initialState, testState, moves);
         return { type: 'speculative', moves: markedMoves };
@@ -313,7 +323,7 @@ function solveSpeculative(
   for (let attempt = 0; attempt < SPECULATIVE_ATTEMPTS; attempt++) {
     const assignment = fisherYates(pool);
     const testState = applyAssignment(initialState, assignment);
-    const moves = solveAstar(testState, SPECULATIVE_MAX_STATES, onProgress);
+    const { moves } = solveAstar(testState, SPECULATIVE_MAX_STATES, onProgress);
     if (moves) {
       const markedMoves = markSpeculativeMoves(initialState, testState, moves);
       return { type: 'speculative', moves: markedMoves };
@@ -331,7 +341,7 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
     return solvePartial(initialState);
   }
 
-  const moves = solveConcrete(initialState, MAX_STATES, onProgress);
+  const { moves } = solveConcrete(initialState, MAX_STATES, onProgress);
   return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
 }
 
