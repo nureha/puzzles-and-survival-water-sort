@@ -32,4 +32,18 @@ describe('applyRevealToEntry', () => {
     const newT: UITube[] = [['', '', 'A', '?']];
     expect(applyRevealToEntry(entry, oldT, newT)).toEqual([['C', 'C', 'D', '?']]);
   });
+
+  test('途中盤面の訂正（旧値と entry が一致）を反映', () => {
+    const entry: UITube[] = [['C', 'C', 'A', '?']]; // 以前 A と判明・保存済み
+    const oldT: UITube[] = [['', '', 'A', '?']]; // 露出後、上に A が出ている途中盤面
+    const newT: UITube[] = [['', '', 'B', '?']]; // A → B に訂正
+    expect(applyRevealToEntry(entry, oldT, newT)).toEqual([['C', 'C', 'B', '?']]);
+  });
+
+  test('訂正で entry が旧値と一致しなければ書き込まない（誤上書き防止）', () => {
+    const entry: UITube[] = [['C', 'C', 'D', '?']]; // entry は D（旧値 A と不一致）
+    const oldT: UITube[] = [['', '', 'A', '?']];
+    const newT: UITube[] = [['', '', 'B', '?']];
+    expect(applyRevealToEntry(entry, oldT, newT)).toEqual([['C', 'C', 'D', '?']]);
+  });
 });

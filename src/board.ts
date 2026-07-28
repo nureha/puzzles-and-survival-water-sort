@@ -8,7 +8,10 @@ export function isStartState(tubes: UITube[]): boolean {
 
 // 判明/訂正を active entry の保存盤面へ反映して返す。
 // - newTubes がスタート状態: そのまま丸ごと（判明・訂正どちらも反映）。
-// - 途中盤面: ?→具体色 の内部 (t,i) を、entry が ? の箇所のみ反映（誤上書き防止）。
+// - 途中盤面: 内部 (t,i) で entry の該当セルへ書き戻す。同一セルである確証があるときのみ：
+//   - 判明（?→具体色）: entry の該当セルが ? のとき。
+//   - 訂正（色→別の色）: entry の該当セルが旧値と一致するとき。
+//   いずれも一致しなければスキップ（? セルが移動した speculative 等での誤上書きを防ぐ）。
 export function applyRevealToEntry(
   entryTubes: UITube[],
   oldTubes: UITube[],
@@ -26,10 +29,13 @@ export function applyRevealToEntry(
     const entryTube = entryInt[t];
     if (!oldTube || !newTube || !entryTube) continue;
     for (let i = 0; i < oldTube.length; i++) {
-      const revealed =
-        oldTube[i] === '?' && newTube[i] !== undefined && newTube[i] !== '?' && newTube[i] !== '';
-      if (revealed && entryTube[i] === '?') {
-        entryTube[i] = newTube[i];
+      const nv = newTube[i];
+      if (nv === undefined || nv === '?' || nv === '') continue; // 具体色への変更のみ
+      if (oldTube[i] === nv) continue; // 変化なし
+      if (oldTube[i] === '?') {
+        if (entryTube[i] === '?') entryTube[i] = nv; // 判明
+      } else if (entryTube[i] === oldTube[i]) {
+        entryTube[i] = nv; // 訂正（旧値一致で同一セル確証）
       }
     }
   }

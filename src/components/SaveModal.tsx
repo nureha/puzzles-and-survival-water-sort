@@ -46,6 +46,9 @@ export function SaveModal({ tubes, saves, activeEntryId, onSave, onLoad, onDelet
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <p className="modal-storage-note">データはサーバーには送信・保存されません</p>
+        <p className="modal-storage-note">
+          進行中データがあるとき、判明・訂正は自動保存されます。ただし推定解（? を仮定）の手を進めた途中での入力は保存されないことがあります（確実にするにはスタート状態で入力してください）。
+        </p>
 
         <div className="modal-section">
           <p className="modal-section-title">現在の状態を保存</p>
