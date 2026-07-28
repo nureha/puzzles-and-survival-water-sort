@@ -11,6 +11,7 @@ import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import { inferUnknowns } from './solver/infer';
 import { formatTubes } from './report/formatBoard';
 import { detectReveal } from './reveal';
+import { applyRevealToEntry } from './board';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -48,6 +49,7 @@ function App() {
   const [deepSolving, setDeepSolving] = useState(false);
   const [deepThreshold, setDeepThreshold] = useState(0);
   const [resultIsResearch, setResultIsResearch] = useState(false);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const [mode, setMode] = useState<'solver' | 'simulation'>('solver');
   const [simHistory, setSimHistory] = useState<UITube[][]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -86,10 +88,17 @@ function App() {
     setResult(null);
     setError(null);
     resetProgress();
+    setActiveEntryId(null);
   };
 
   const handleTubesChange = (newTubes: UITube[]) => {
     setError(validateColorCounts(newTubes));
+
+    // active entry があれば、判明/訂正を保存データへ自動反映（再探索・ステップ送りとは独立）。
+    if (activeEntryId) {
+      const entry = saves.find(s => s.id === activeEntryId);
+      if (entry) overwrite(activeEntryId, applyRevealToEntry(entry.tubes, tubes, newTubes));
+    }
 
     // reveal（? を具体色へ確定入力）なら、解・進捗を消さず盤面へ反映するだけ。
     // 推測が当たっていれば継続、外れていれば「この盤面から再探索」でリカバリする。
@@ -249,6 +258,7 @@ function App() {
     setResult(null);
     setError(null);
     resetProgress();
+    setActiveEntryId(entry.id);
   };
 
   const handleReset = () => {
@@ -265,6 +275,7 @@ function App() {
     setCompletedCount(0);
     setInitialTubes(null);
     setResultIsResearch(false);
+    setActiveEntryId(null);
     setSimHistory([]);
   };
 
@@ -446,10 +457,11 @@ function App() {
         <SaveModal
           tubes={tubes}
           saves={saves}
-          onSave={save}
+          activeEntryId={activeEntryId}
+          onSave={(name, board) => setActiveEntryId(save(name, board))}
           onLoad={handleLoad}
-          onDelete={remove}
-          onOverwrite={overwrite}
+          onDelete={id => { remove(id); if (id === activeEntryId) setActiveEntryId(null); }}
+          onOverwrite={(id, board) => { overwrite(id, board); setActiveEntryId(id); }}
           onClose={() => setShowSaveModal(false)}
         />
       )}
