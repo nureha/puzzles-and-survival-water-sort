@@ -26,13 +26,15 @@ function persist(saves: SaveEntry[]): void {
 export function useSaves() {
   const [saves, setSaves] = useState<SaveEntry[]>(loadFromStorage);
 
-  const save = useCallback((name: string, tubes: UITube[]) => {
-    const entry: SaveEntry = { id: Date.now().toString(), name, tubes, savedAt: Date.now() };
+  const save = useCallback((name: string, tubes: UITube[]): string => {
+    const id = Date.now().toString();
+    const entry: SaveEntry = { id, name, tubes, savedAt: Date.now() };
     setSaves(prev => {
       const next = [entry, ...prev];
       persist(next);
       return next;
     });
+    return id;
   }, []);
 
   const remove = useCallback((id: string) => {
