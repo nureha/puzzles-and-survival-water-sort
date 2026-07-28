@@ -7,7 +7,8 @@ export function detectReveal(oldTubes: UITube[], nextTubes: UITube[]): boolean {
     const oldTube = oldTubes[t];
     const nextTube = nextTubes[t];
     if (!oldTube || !nextTube) continue;
-    for (let c = 0; c < oldTube.length; c++) {
+    const len = Math.min(oldTube.length, nextTube.length);
+    for (let c = 0; c < len; c++) {
       if (oldTube[c] === '?' && nextTube[c] !== '?' && nextTube[c] !== '') {
         return true;
       }

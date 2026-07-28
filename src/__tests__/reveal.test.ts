@@ -31,4 +31,11 @@ describe('detectReveal', () => {
     const nextTubes: UITube[] = [['A', '', '', '']];
     expect(detectReveal(oldTubes, nextTubes)).toBe(false);
   });
+
+  test('nextTube が短くても誤検知しない', () => {
+    const oldTubes: UITube[] = [['A', '?', '?', '?']];
+    // 長さ不一致の異常系: 短い側までしか比較せず false
+    const nextTubes = [['A']] as unknown as UITube[];
+    expect(detectReveal(oldTubes, nextTubes)).toBe(false);
+  });
 });
