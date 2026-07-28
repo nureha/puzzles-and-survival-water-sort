@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { SolveResult, Move, UITube } from '../solver/types';
 import { ReportBoardSection } from './ReportBoardSection';
 
@@ -10,10 +9,9 @@ interface SolutionListProps {
   onReset: () => void;
   onResearch?: () => void;
   isResearch?: boolean;
-  onSaveInitial?: (name: string) => void;
 }
 
-export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onResearch, isResearch, onSaveInitial }: SolutionListProps) {
+export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onResearch, isResearch }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -125,51 +123,7 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
           onStepToggle={onStepToggle}
         />
       )}
-      {cleared && onSaveInitial && (
-        <ClearSaveForm onSave={onSaveInitial} />
-      )}
-    </div>
-  );
-}
-
-function ClearSaveForm({ onSave }: { onSave: (name: string) => void }) {
-  const [name, setName] = useState('');
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = () => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    onSave(trimmed);
-    setSaved(true);
-  };
-
-  return (
-    <div className="clear-save">
-      <p className="clear-title">🎉 クリア！</p>
-      {saved ? (
-        <p className="clear-saved-msg">保存しました ✓</p>
-      ) : (
-        <>
-          <p className="clear-save-desc">初期状態を保存しておきますか？</p>
-          <div className="save-input-row">
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSave()}
-              placeholder="名前を入力（例: ステージ5-3）"
-              className="save-name-input"
-            />
-            <button
-              className="save-confirm-btn"
-              onClick={handleSave}
-              disabled={!name.trim()}
-            >
-              保存
-            </button>
-          </div>
-        </>
-      )}
+      {cleared && <p className="clear-title">🎉 クリア！</p>}
     </div>
   );
 }

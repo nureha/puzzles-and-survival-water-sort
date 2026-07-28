@@ -115,4 +115,19 @@ describe('SolutionList 再探索・文言分岐', () => {
       screen.getByRole('button', { name: 'この盤面を共有して改善に協力する' })
     ).toBeInTheDocument();
   });
+
+  test('クリア済み solved はメッセージのみで保存欄が無い', () => {
+    render(
+      <SolutionList
+        result={{ type: 'solved', moves: [{ from: 0, to: 1 }] }}
+        completedCount={1}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(screen.getByText('🎉 クリア！')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
+  });
 });

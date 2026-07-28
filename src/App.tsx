@@ -402,7 +402,6 @@ function App() {
               boardTubes={initialTubes ?? tubes}
               onStepToggle={handleStepToggle}
               onReset={handleReset}
-              onSaveInitial={name => save(name, initialTubes ?? tubes)}
             />
           )}
         </div>
