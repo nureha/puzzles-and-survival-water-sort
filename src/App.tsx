@@ -11,7 +11,7 @@ import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import { inferUnknowns } from './solver/infer';
 import { formatTubes } from './report/formatBoard';
 import { detectReveal } from './reveal';
-import { applyRevealToEntry } from './board';
+import { applyRevealToEntry, isStartState } from './board';
 import type { UITube, SolveResult } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
@@ -95,9 +95,16 @@ function App() {
     setError(validateColorCounts(newTubes));
 
     // active entry があれば、判明/訂正を保存データへ自動反映（再探索・ステップ送りとは独立）。
-    if (activeEntryId) {
+    // speculative の途中盤面は ? セルが移動し得るため、誤書き込みを避けてスキップする
+    // （partial の露出手順や、スタート状態での判明・訂正は安全に反映される）。
+    if (activeEntryId && !(result?.type === 'speculative' && !isStartState(newTubes))) {
       const entry = saves.find(s => s.id === activeEntryId);
-      if (entry) overwrite(activeEntryId, applyRevealToEntry(entry.tubes, tubes, newTubes));
+      if (entry) {
+        const updated = applyRevealToEntry(entry.tubes, tubes, newTubes);
+        if (JSON.stringify(updated) !== JSON.stringify(entry.tubes)) {
+          overwrite(activeEntryId, updated);
+        }
+      }
     }
 
     // reveal（? を具体色へ確定入力）なら、解・進捗を消さず盤面へ反映するだけ。
@@ -389,7 +396,7 @@ function App() {
                   {solving || deepSolving ? '解いています...' : '解く'}
                 </button>
                 <button className="save-load-btn" onClick={() => {
-                  handleTubesChange(inferUnknowns(autoFillUnknown(tubes)));
+                  setTubes(inferUnknowns(autoFillUnknown(tubes)));
                   setShowSaveModal(true);
                 }}>
                   保存 / 読み込み

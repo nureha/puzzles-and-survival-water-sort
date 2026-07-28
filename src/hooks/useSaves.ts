@@ -27,7 +27,7 @@ export function useSaves() {
   const [saves, setSaves] = useState<SaveEntry[]>(loadFromStorage);
 
   const save = useCallback((name: string, tubes: UITube[]): string => {
-    const id = Date.now().toString();
+    const id = crypto.randomUUID();
     const entry: SaveEntry = { id, name, tubes, savedAt: Date.now() };
     setSaves(prev => {
       const next = [entry, ...prev];
