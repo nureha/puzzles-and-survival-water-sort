@@ -8,10 +8,11 @@ interface SolutionListProps {
   onStepToggle: (index: number) => void;
   onReset: () => void;
   onResearch?: () => void;
+  onRestart?: () => void;
   isResearch?: boolean;
 }
 
-export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onResearch, isResearch }: SolutionListProps) {
+export function SolutionList({ result, completedCount, boardTubes, onStepToggle, onReset, onResearch, onRestart, isResearch }: SolutionListProps) {
   if (!result) {
     return <p style={{ color: 'var(--app-muted)' }}>試験管を入力して「解く」を押してください</p>;
   }
@@ -40,6 +41,7 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
           </>
         )}
         {onResearch && <ResearchButton onResearch={onResearch} />}
+        {onRestart && <RestartButton onRestart={onRestart} />}
       </div>
     );
   }
@@ -130,6 +132,17 @@ function ResearchButton({ onResearch }: { onResearch: () => void }) {
       style={{ marginTop: '0.75rem', fontSize: '0.85rem', padding: '4px 12px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
     >
       この盤面から再探索
+    </button>
+  );
+}
+
+function RestartButton({ onRestart }: { onRestart: () => void }) {
+  return (
+    <button
+      onClick={onRestart}
+      style={{ marginTop: '0.75rem', marginLeft: '0.5rem', fontSize: '0.85rem', padding: '4px 12px', background: 'var(--app-btn-bg)', border: '1px solid var(--app-btn-border)', borderRadius: '4px', color: 'var(--text-h)', cursor: 'pointer' }}
+    >
+      リスタート
     </button>
   );
 }

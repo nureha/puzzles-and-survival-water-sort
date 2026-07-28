@@ -116,6 +116,36 @@ describe('SolutionList 再探索・文言分岐', () => {
     ).toBeInTheDocument();
   });
 
+  test('unsolvable で onRestart があればリスタートボタンを表示し押下で呼ぶ', () => {
+    const onRestart = vi.fn();
+    render(
+      <SolutionList
+        result={{ type: 'unsolvable' }}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+        onRestart={onRestart}
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'リスタート' });
+    fireEvent.click(btn);
+    expect(onRestart).toHaveBeenCalledTimes(1);
+  });
+
+  test('unsolvable で onRestart が無ければリスタートボタンを出さない', () => {
+    render(
+      <SolutionList
+        result={{ type: 'unsolvable' }}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'リスタート' })).not.toBeInTheDocument();
+  });
+
   test('クリア済み solved はメッセージのみで保存欄が無い', () => {
     render(
       <SolutionList

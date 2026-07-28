@@ -454,6 +454,10 @@ function App() {
               onStepToggle={handleStepToggle}
               onReset={handleReset}
               onResearch={() => runSolve(tubes, true)}
+              onRestart={(() => {
+                const active = activeEntryId ? saves.find(s => s.id === activeEntryId) : undefined;
+                return active ? () => handleLoad(active) : undefined;
+              })()}
               isResearch={resultIsResearch}
             />
           )}
