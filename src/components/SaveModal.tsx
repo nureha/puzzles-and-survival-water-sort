@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { UITube } from '../solver/types';
 import type { SaveEntry } from '../hooks/useSaves';
+import { isStartState } from '../board';
 
 interface SaveModalProps {
   tubes: UITube[];
   saves: SaveEntry[];
+  activeEntryId?: string | null;
   onSave: (name: string, tubes: UITube[]) => void;
   onLoad: (entry: SaveEntry) => void;
   onDelete: (id: string) => void;
@@ -12,15 +14,28 @@ interface SaveModalProps {
   onClose: () => void;
 }
 
-export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite, onClose }: SaveModalProps) {
+export function SaveModal({ tubes, saves, activeEntryId, onSave, onLoad, onDelete, onOverwrite, onClose }: SaveModalProps) {
   const [name, setName] = useState('');
+  const activeEntry = activeEntryId ? saves.find(s => s.id === activeEntryId) : undefined;
+
+  const guardSaveable = (): boolean => {
+    if (tubes.every(tube => tube.every(c => c === ''))) { alert('盤面が空のため保存できません'); return false; }
+    if (!isStartState(tubes)) { alert('スタート状態（各ボトルが満杯か空）でないと保存できません'); return false; }
+    return true;
+  };
 
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (tubes.every(tube => tube.every(c => c === ''))) { alert('盤面が空のため保存できません'); return; }
+    if (!guardSaveable()) return;
     onSave(trimmed, tubes);
     setName('');
+  };
+
+  const handleOverwriteActive = () => {
+    if (!activeEntry) return;
+    if (!guardSaveable()) return;
+    onOverwrite(activeEntry.id, tubes);
   };
 
   return (
@@ -34,6 +49,16 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
 
         <div className="modal-section">
           <p className="modal-section-title">現在の状態を保存</p>
+          {activeEntry && (
+            <p className="modal-active-note">進行中: {activeEntry.name}（保存すると上書きされます）</p>
+          )}
+          {activeEntry && (
+            <div className="save-input-row">
+              <button className="save-confirm-btn" onClick={handleOverwriteActive}>
+                上書き保存
+              </button>
+            </div>
+          )}
           <div className="save-input-row">
             <input
               type="text"
@@ -45,7 +70,7 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
               autoFocus
             />
             <button className="save-confirm-btn" onClick={handleSave} disabled={!name.trim()}>
-              保存
+              {activeEntry ? '別名で新規保存' : '保存'}
             </button>
           </div>
         </div>
@@ -59,7 +84,9 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
               {saves.map(entry => (
                 <li key={entry.id} className="save-entry">
                   <div className="save-entry-info">
-                    <span className="save-entry-name">{entry.name}</span>
+                    <span className="save-entry-name">
+                      {entry.name}{entry.id === activeEntryId ? '（進行中）' : ''}
+                    </span>
                     <span className="save-entry-date">
                       {new Date(entry.savedAt).toLocaleString('ja-JP', {
                         month: 'numeric',
@@ -71,8 +98,7 @@ export function SaveModal({ tubes, saves, onSave, onLoad, onDelete, onOverwrite,
                   </div>
                   <div className="save-entry-actions">
                     <button className="overwrite-btn" onClick={() => {
-                      const isEmpty = tubes.every(tube => tube.every(c => c === ''));
-                      if (isEmpty) { alert('盤面が空のため上書きできません'); return; }
+                      if (!guardSaveable()) return;
                       onOverwrite(entry.id, tubes);
                     }}>
                       上書き
