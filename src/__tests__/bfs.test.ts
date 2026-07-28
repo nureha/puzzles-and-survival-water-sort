@@ -198,6 +198,26 @@ describe('solve – phase 2 (unknowns present)', () => {
     expect(result.revealHints.length).toBeGreaterThan(0);
     expect(result.revealHints[0].tubeIndex).toBe(0);
   });
+
+  test('partial の手順は ? を露出させる手で終わる', () => {
+    // tube0 internal ['?','A'] → top=A, below=?; tube2（空）が唯一の有効な移動先
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['B', 'B', 'B', 'B'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    const revealTube = result.revealHints[0].tubeIndex;
+    // 最後の手は対象チューブから動かす露出手
+    const last = result.moves[result.moves.length - 1];
+    expect(last.from).toBe(revealTube);
+    // 全手を適用すると対象チューブのトップが ? になる（露出）
+    let s: PuzzleState = state;
+    for (const m of result.moves) s = applyMove(s, m.from, m.to);
+    expect(s[revealTube][s[revealTube].length - 1]).toBe('?');
+  });
 });
 
 describe('solve – speculative (few unknowns)', () => {

@@ -53,7 +53,7 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
         </p>
         {hasMovesBeforeHint && (
           <>
-            <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>? を露出させるための手順:</p>
+            <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>? を判明させる手順（最後の手で ? が上に出ます）:</p>
             <MoveList
               moves={result.moves}
               completedCount={completedCount}
@@ -63,11 +63,6 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
         )}
         {result.revealHints.length > 0 && (
           <div style={{ marginTop: '1rem' }}>
-            <p style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-              {hasMovesBeforeHint
-                ? '上記の手順を実行後、以下の操作で ? が判明します:'
-                : '? を判明させるには:'}
-            </p>
             <ul style={{ paddingLeft: '1.2rem' }}>
               {result.revealHints.map((hint, i) => (
                 <li key={i} style={{ fontSize: '0.9rem', color: 'var(--app-hint)', marginBottom: '4px' }}>

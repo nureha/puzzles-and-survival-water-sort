@@ -346,6 +346,32 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
   return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
 }
 
+function firstValidDest(state: PuzzleState, from: number): number {
+  for (let j = 0; j < state.length; j++) {
+    if (isValidMove(state, from, j)) return j;
+  }
+  return -1;
+}
+
+// Builds a partial result whose moves END with the ?-exposing move (moving the known
+// block sitting directly on top of a ?), so the entire reveal sequence is checkable in
+// the UI. After completing the steps the ? is at the top; the user enters the revealed
+// color and re-searches from that (correct) board. Both path and exposing moves only
+// touch KNOWN cells, so replaying them on the ?-board is exact.
+function partialWithReveal(state: PuzzleState, pathMoves: Move[], hints: RevealHint[]): SolveResult {
+  if (hints.length === 0) return { type: 'partial', moves: pathMoves, revealHints: [] };
+  const h = hints[0];
+  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex) };
+  return {
+    type: 'partial',
+    moves: [...pathMoves, exposeMove],
+    revealHints: [{
+      tubeIndex: h.tubeIndex,
+      description: `手順をすべて実行すると試験管${h.tubeIndex + 1}の ? が上に出ます。判明した色を入力して「この盤面から再探索」を押してください。`,
+    }],
+  };
+}
+
 function solvePartial(initialState: PuzzleState): SolveResult {
   type Node = { state: PuzzleState; moves: Move[] };
   const queue: Node[] = [{ state: initialState, moves: [] }];
@@ -358,7 +384,7 @@ function solvePartial(initialState: PuzzleState): SolveResult {
     // BFS guarantees this is the shortest path to any such state.
     const hints = findRevealHints(state);
     if (hints.length > 0) {
-      return { type: 'partial', moves, revealHints: hints };
+      return partialWithReveal(state, moves, hints);
     }
 
     const firstEmpty = firstEmptyIndex(state);
@@ -375,7 +401,7 @@ function solvePartial(initialState: PuzzleState): SolveResult {
     }
   }
 
-  return { type: 'partial', moves: [], revealHints: findRevealHints(initialState) };
+  return partialWithReveal(initialState, [], findRevealHints(initialState));
 }
 
 // IDA* (Iterative Deepening A*): explores arbitrarily deep without memory limits.
