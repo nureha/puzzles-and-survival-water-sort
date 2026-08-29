@@ -361,13 +361,15 @@ function firstValidDest(state: PuzzleState, from: number): number {
 function partialWithReveal(state: PuzzleState, pathMoves: Move[], hints: RevealHint[]): SolveResult {
   if (hints.length === 0) return { type: 'partial', moves: pathMoves, revealHints: [] };
   const h = hints[0];
-  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex) };
+  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex), revealsTube: h.tubeIndex };
+  const moves = [...pathMoves, exposeMove];
   return {
     type: 'partial',
-    moves: [...pathMoves, exposeMove],
+    moves,
     revealHints: [{
       tubeIndex: h.tubeIndex,
-      description: `手順をすべて実行すると試験管${h.tubeIndex + 1}の ? が上に出ます。判明した色を入力して「この盤面から再探索」を押してください。`,
+      stepIndex: moves.length - 1,
+      description: h.description,
     }],
   };
 }
@@ -490,6 +492,7 @@ function findRevealHints(state: PuzzleState): RevealHint[] {
       if (dests.length === 0) continue;
       hints.push({
         tubeIndex: i,
+        stepIndex: 0,
         description: `試験管${i + 1}のトップ（${top}）を試験管${dests.join('・')}へ動かすと ? が判明します`,
       });
     }

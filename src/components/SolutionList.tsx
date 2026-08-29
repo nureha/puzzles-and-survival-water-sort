@@ -47,33 +47,40 @@ export function SolutionList({ result, completedCount, boardTubes, onStepToggle,
   }
 
   if (result.type === 'partial') {
-    const hasMovesBeforeHint = result.moves.length > 0;
+    const revealCount = result.revealHints.length;
+    const warning = (
+      <p style={{ color: 'var(--app-warning)', marginBottom: '0.5rem' }}>
+        未判明の色が多いため推定解を求められませんでした。まず ? を判明させてください。
+      </p>
+    );
+
+    if (result.moves.length === 0) {
+      return (
+        <div>
+          {warning}
+          <p style={{ fontSize: '0.9rem', color: 'var(--app-muted)' }}>
+            動かせる既知のブロックが無く、? を判明させる手順がありません。
+          </p>
+          {onResearch && <ResearchButton onResearch={onResearch} />}
+        </div>
+      );
+    }
+
+    const tubeLabels = result.revealHints.map(h => `試験管${h.tubeIndex + 1}`).join('・');
     return (
       <div>
-        <p style={{ color: 'var(--app-warning)', marginBottom: '0.5rem' }}>
-          未判明の色が多いため推定解を求められませんでした。まず ? を判明させてください。
+        {warning}
+        <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+          ? を判明させる手順（{revealCount}個の ? が判明します）:
         </p>
-        {hasMovesBeforeHint && (
-          <>
-            <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>? を判明させる手順（最後の手で ? が上に出ます）:</p>
-            <MoveList
-              moves={result.moves}
-              completedCount={completedCount}
-              onStepToggle={onStepToggle}
-            />
-          </>
-        )}
-        {result.revealHints.length > 0 && (
-          <div style={{ marginTop: '1rem' }}>
-            <ul style={{ paddingLeft: '1.2rem' }}>
-              {result.revealHints.map((hint, i) => (
-                <li key={i} style={{ fontSize: '0.9rem', color: 'var(--app-hint)', marginBottom: '4px' }}>
-                  {hint.description}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <MoveList
+          moves={result.moves}
+          completedCount={completedCount}
+          onStepToggle={onStepToggle}
+        />
+        <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--app-hint)' }}>
+          すべて実行すると <strong>{tubeLabels}</strong> の ? が判明します（{revealCount}個）。判明した色を入力して「この盤面から再探索」を押してください。
+        </p>
         {onResearch && <ResearchButton onResearch={onResearch} />}
       </div>
     );
@@ -190,6 +197,11 @@ function MoveList({
                 {i + 1}. 試験管{move.from + 1} → 試験管{move.to + 1}
                 {move.isSpeculative ? ' （推定）' : ''}
               </span>
+              {move.revealsTube !== undefined && (
+                <span style={{ fontSize: '0.85rem', color: 'var(--app-hint)', flexShrink: 0 }}>
+                  ← 試験管{move.revealsTube + 1} の ? が判明
+                </span>
+              )}
             </label>
           </li>
         );
