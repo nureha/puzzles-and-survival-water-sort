@@ -23,7 +23,6 @@ export type Move = {
 export type RevealHint = {
   tubeIndex: number;
   stepIndex: number;
-  description: string;
 };
 
 export type SolveResult =

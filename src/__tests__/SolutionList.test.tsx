@@ -170,8 +170,8 @@ describe('SolutionList partial 分岐（最大露出手順）', () => {
       { from: 1, to: 3, revealsTube: 1 },
     ],
     revealHints: [
-      { tubeIndex: 0, stepIndex: 0, description: '' },
-      { tubeIndex: 1, stepIndex: 1, description: '' },
+      { tubeIndex: 0, stepIndex: 0 },
+      { tubeIndex: 1, stepIndex: 1 },
     ],
   };
 

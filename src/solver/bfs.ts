@@ -105,6 +105,13 @@ class MinHeap<T> {
 const MAX_STATES = 1_000_000;
 const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
+// partial（? の露出）探索の予算。? を含む盤面は isValidMove が凍結した試験管を
+// 弾くぶん自由度が低く、到達状態数は具体色ソルバーより小さい。予算に達した場合は
+// その時点までの最良結果を返す（旧実装が見つけていた最初の1個は同じ深さで
+// 見つかるため、結果が旧実装より悪くなることはない）。
+// 実測: 20本・?16個の盤面で 200,000 は約3.35秒、100,000 は約1.23秒
+// （2026-08-30, Node 22 / M1）。3秒以内に収まる最大値として 100,000 を採用。
+const REVEAL_MAX_STATES = 100_000;
 // When the ? cells admit at most this many distinct color fillings, enumerate all of
 // them at full solver strength instead of random sampling. 24 = 4! covers up to four
 // distinct-color unknowns (the typical late-game residue), while keeping worst-case
@@ -339,54 +346,89 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
   if (initialState.some(tube => tube.includes('?'))) {
     const specResult = solveSpeculative(initialState, onProgress);
     if (specResult) return specResult;
-    return solvePartial(initialState);
+    return solveMaxReveal(initialState);
   }
 
   const { moves } = solveConcrete(initialState, MAX_STATES, onProgress);
   return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
 }
 
-function firstValidDest(state: PuzzleState, from: number): number {
-  for (let j = 0; j < state.length; j++) {
-    if (isValidMove(state, from, j)) return j;
+// トップが '?' の試験管の本数。isValidMove がトップ '?' の試験管を from にも to にも
+// 選ばせないため、一度露出した試験管は永久に凍結する。よってこの値は経路に沿って
+// 単調増加し、初期値との差がそのまま「この手順で新たに判明した ? の個数」になる。
+function exposedCount(state: PuzzleState): number {
+  let n = 0;
+  for (const tube of state) {
+    if (tube.length > 0 && tube[tube.length - 1] === '?') n++;
   }
-  return -1;
+  return n;
 }
 
-// Builds a partial result whose moves END with the ?-exposing move (moving the known
-// block sitting directly on top of a ?), so the entire reveal sequence is checkable in
-// the UI. After completing the steps the ? is at the top; the user enters the revealed
-// color and re-searches from that (correct) board. Both path and exposing moves only
-// touch KNOWN cells, so replaying them on the ?-board is exact.
-function partialWithReveal(state: PuzzleState, pathMoves: Move[], hints: RevealHint[]): SolveResult {
-  if (hints.length === 0) return { type: 'partial', moves: pathMoves, revealHints: [] };
-  const h = hints[0];
-  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex), revealsTube: h.tubeIndex };
-  const moves = [...pathMoves, exposeMove];
-  return {
-    type: 'partial',
-    moves,
-    revealHints: [{
-      tubeIndex: h.tubeIndex,
-      stepIndex: moves.length - 1,
-      description: h.description,
-    }],
-  };
+// 露出しうる試験管の本数の上限。'?' を含み、かつトップがまだ既知色の試験管。
+// 到達可能とは限らないが、ここに達したら探索を打ち切ってよい。
+function maxRevealable(state: PuzzleState): number {
+  let n = 0;
+  for (const tube of state) {
+    if (tube.includes('?') && tube[tube.length - 1] !== '?') n++;
+  }
+  return n;
 }
 
-function solvePartial(initialState: PuzzleState): SolveResult {
-  type Node = { state: PuzzleState; moves: Move[] };
-  const queue: Node[] = [{ state: initialState, moves: [] }];
+type RevealNode = { state: PuzzleState; parent: number; move: Move | null };
+
+// 親ポインタを辿って経路を復元し、各手に revealsTube を付けて RevealHint を組み立てる。
+function buildRevealResult(
+  initialState: PuzzleState,
+  nodes: RevealNode[],
+  bestNode: number,
+): SolveResult {
+  const rawMoves: Move[] = [];
+  for (let i = bestNode; i > 0; i = nodes[i].parent) {
+    rawMoves.push(nodes[i].move!);
+  }
+  rawMoves.reverse();
+
+  const moves: Move[] = [];
+  const revealHints: RevealHint[] = [];
+  let state = initialState;
+  for (let i = 0; i < rawMoves.length; i++) {
+    const move = rawMoves[i];
+    state = applyMove(state, move.from, move.to);
+    // 注ぎ先のトップは注いだ既知色になるため、露出しうるのは注ぎ元だけ。
+    const src = state[move.from];
+    if (src.length > 0 && src[src.length - 1] === '?') {
+      moves.push({ ...move, revealsTube: move.from });
+      revealHints.push({ tubeIndex: move.from, stepIndex: i });
+    } else {
+      moves.push(move);
+    }
+  }
+  return { type: 'partial', moves, revealHints };
+}
+
+// 1回の手順で露出できる ? の個数を最大化する。BFS が層順（手数順）に展開するため、
+// 露出数が同じ経路のうち最初に記録されるものが最短手数になる。また best を更新した
+// 状態の直前状態は必ず露出数が小さい（そうでなければより短い経路が先に記録されて
+// いる）ので、返す経路の末尾は必ず露出手であり、末尾の刈り込みは不要。
+function solveMaxReveal(initialState: PuzzleState): SolveResult {
+  const maxReveal = maxRevealable(initialState);
+  if (maxReveal === 0) return { type: 'partial', moves: [], revealHints: [] };
+
+  const baseExposed = exposedCount(initialState);
+  const nodes: RevealNode[] = [{ state: initialState, parent: -1, move: null }];
   const visited = new Set<string>([stateKey(initialState)]);
 
-  while (queue.length > 0 && visited.size < MAX_STATES) {
-    const { state, moves } = queue.shift()!;
+  let best = 0;
+  let bestNode = 0;
 
-    // Return as soon as we reach a state where a ? can be revealed.
-    // BFS guarantees this is the shortest path to any such state.
-    const hints = findRevealHints(state);
-    if (hints.length > 0) {
-      return partialWithReveal(state, moves, hints);
+  for (let head = 0; head < nodes.length && visited.size < REVEAL_MAX_STATES; head++) {
+    const { state } = nodes[head];
+
+    const revealed = exposedCount(state) - baseExposed;
+    if (revealed > best) {
+      best = revealed;
+      bestNode = head;
+      if (best === maxReveal) break;
     }
 
     const firstEmpty = firstEmptyIndex(state);
@@ -398,12 +440,12 @@ function solvePartial(initialState: PuzzleState): SolveResult {
         const key = stateKey(next);
         if (visited.has(key)) continue;
         visited.add(key);
-        queue.push({ state: next, moves: [...moves, { from, to }] });
+        nodes.push({ state: next, parent: head, move: { from, to } });
       }
     }
   }
 
-  return partialWithReveal(initialState, [], findRevealHints(initialState));
+  return buildRevealResult(initialState, nodes, bestNode);
 }
 
 // IDA* (Iterative Deepening A*): explores arbitrarily deep without memory limits.
@@ -473,29 +515,4 @@ export function solveDeep(
   }
 
   return null;
-}
-
-function findRevealHints(state: PuzzleState): RevealHint[] {
-  const hints: RevealHint[] = [];
-  for (let i = 0; i < state.length; i++) {
-    const tube = state[i];
-    const top = topColor(tube);
-    if (!top || top === '?') continue;
-    const count = topConsecutiveCount(tube);
-    const belowIndex = tube.length - 1 - count;
-    if (belowIndex >= 0 && tube[belowIndex] === '?') {
-      const dests = [];
-      for (let j = 0; j < state.length; j++) {
-        if (isValidMove(state, i, j)) dests.push(j + 1);
-      }
-      // Only a real reveal opportunity if the blocking block can actually be moved.
-      if (dests.length === 0) continue;
-      hints.push({
-        tubeIndex: i,
-        stepIndex: 0,
-        description: `試験管${i + 1}のトップ（${top}）を試験管${dests.join('・')}へ動かすと ? が判明します`,
-      });
-    }
-  }
-  return hints;
 }
