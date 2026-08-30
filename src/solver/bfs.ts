@@ -107,11 +107,20 @@ const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
 // partial（? の露出）探索の予算。? を含む盤面は isValidMove が凍結した試験管を
 // 弾くぶん自由度が低く、到達状態数は具体色ソルバーより小さい。予算に達した場合は
-// その時点までの最良結果を返す（旧実装が見つけていた最初の1個は同じ深さで
-// 見つかるため、結果が旧実装より悪くなることはない）。
+// その時点までの最良結果を返す。
+// 注: 「旧実装（最初の1個を露出したら即返す）と同じ深さで見つかるので悪化しない」
+// という理屈は成り立たない。旧実装は露出手を打つ前の状態で露出を検知していたのに対し、
+// 本実装は露出を状態として観測するため BFS を1層深く展開する必要があり、加えて予算も
+// MAX_STATES（1,000,000）から 1/10 に絞っている。理論保証ではなく実測での判断:
+// 試した盤面はいずれも旧実装の1個に対し2〜3個を返し、下回る例は確認されていない
+// （2026-08-30）。
 // 実測: 20本・?16個の盤面で 200,000 は約3.35秒、100,000 は約1.23秒
 // （2026-08-30, Node 22 / M1）。3秒以内に収まる最大値として 100,000 を採用。
 const REVEAL_MAX_STATES = 100_000;
+// 露出探索の進捗通知の間隔（状態数）。1回の展開で visited が数十件増えるため
+// solveAstar の `size % 10_000 === 0` 方式では倍数を跨いで通知が飛ぶ。閾値方式で
+// 10,000 状態ごとに確実に通知する。
+const REVEAL_PROGRESS_INTERVAL = 10_000;
 // When the ? cells admit at most this many distinct color fillings, enumerate all of
 // them at full solver strength instead of random sampling. 24 = 4! covers up to four
 // distinct-color unknowns (the typical late-game residue), while keeping worst-case
@@ -346,7 +355,7 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
   if (initialState.some(tube => tube.includes('?'))) {
     const specResult = solveSpeculative(initialState, onProgress);
     if (specResult) return specResult;
-    return solveMaxReveal(initialState);
+    return solveMaxReveal(initialState, onProgress);
   }
 
   const { moves } = solveConcrete(initialState, MAX_STATES, onProgress);
@@ -374,7 +383,18 @@ function maxRevealable(state: PuzzleState): number {
   return n;
 }
 
-type RevealNode = { state: PuzzleState; parent: number; move: Move | null };
+// 探索木のノード。盤面そのものは持たず、visited に登録済みの stateKey 文字列を
+// そのまま参照する（同一の文字列インスタンスなので追加のメモリを消費しない）。
+// buildRevealResult は initialState から手順を再生するため parent/move しか使わず、
+// 盤面が要るのは自分を展開する瞬間だけなので、そこで key から復元すれば足りる。
+// PuzzleState を全ノードに持たせると 20本盤面で1件あたり 1KB を超え、予算いっぱいまで
+// 探索するとヒープが 130MB 超に膨らむ（Web Worker / モバイルで OOM の危険）。
+type RevealNode = { key: string; parent: number; move: Move | null };
+
+// stateKey の逆変換。色は 1 文字（'A'–'Z' か '?'）で ',' '|' を含まないため可逆。
+function parseStateKey(key: string): PuzzleState {
+  return key.split('|').map(tube => (tube === '' ? [] : tube.split(',')));
+}
 
 // 親ポインタを辿って経路を復元し、各手に revealsTube を付けて RevealHint を組み立てる。
 function buildRevealResult(
@@ -406,29 +426,36 @@ function buildRevealResult(
   return { type: 'partial', moves, revealHints };
 }
 
-// 1回の手順で露出できる ? の個数を最大化する。BFS が層順（手数順）に展開するため、
-// 露出数が同じ経路のうち最初に記録されるものが最短手数になる。また best を更新した
-// 状態の直前状態は必ず露出数が小さい（そうでなければより短い経路が先に記録されて
-// いる）ので、返す経路の末尾は必ず露出手であり、末尾の刈り込みは不要。
-function solveMaxReveal(initialState: PuzzleState): SolveResult {
+// 1回の手順で露出できる ? の個数を最大化する。
+//
+// 1) 最短性: BFS の生成順は深さについて単調非減少（head の子の深さは depth(head)+1、
+//    かつ depth(head) は head について単調非減少）。best は生成順に更新されるので、
+//    ある露出数を最初に達成したノード＝その露出数における最短手順になる。
+// 2) 末尾は必ず露出手: あるノードの親は必ずそれより先に生成され、その時点の best と
+//    比較済みである。best は単調非減少なので、親の露出数が子と同じなら親の時点で
+//    best がその値まで上がっており、子は best を更新できない。よって best を更新した
+//    ノードの親は必ず露出数が小さく、最後の手は必ず露出手。末尾の刈り込みは不要。
+//    （1手が減らす試験管は from の1本だけなので露出数の増分は高々1。）
+function solveMaxReveal(initialState: PuzzleState, onProgress?: (n: number) => void): SolveResult {
   const maxReveal = maxRevealable(initialState);
   if (maxReveal === 0) return { type: 'partial', moves: [], revealHints: [] };
 
   const baseExposed = exposedCount(initialState);
-  const nodes: RevealNode[] = [{ state: initialState, parent: -1, move: null }];
-  const visited = new Set<string>([stateKey(initialState)]);
+  const rootKey = stateKey(initialState);
+  const nodes: RevealNode[] = [{ key: rootKey, parent: -1, move: null }];
+  const visited = new Set<string>([rootKey]);
 
   let best = 0;
   let bestNode = 0;
+  let nextProgressAt = REVEAL_PROGRESS_INTERVAL;
 
+  outer:
   for (let head = 0; head < nodes.length && visited.size < REVEAL_MAX_STATES; head++) {
-    const { state } = nodes[head];
+    const state = parseStateKey(nodes[head].key);
 
-    const revealed = exposedCount(state) - baseExposed;
-    if (revealed > best) {
-      best = revealed;
-      bestNode = head;
-      if (best === maxReveal) break;
+    if (onProgress && visited.size >= nextProgressAt) {
+      onProgress(visited.size);
+      nextProgressAt = visited.size + REVEAL_PROGRESS_INTERVAL;
     }
 
     const firstEmpty = firstEmptyIndex(state);
@@ -440,7 +467,21 @@ function solveMaxReveal(initialState: PuzzleState): SolveResult {
         const key = stateKey(next);
         if (visited.has(key)) continue;
         visited.add(key);
-        nodes.push({ state: next, parent: head, move: { from, to } });
+        nodes.push({ key, parent: head, move: { from, to } });
+
+        // 露出数の評価は「展開時」ではなく「生成時」に行う。予算切れでループを抜けると
+        // 最後に生成した層（＝最も深く、露出数が最大になりうる層）が丸ごと未評価のまま
+        // 捨てられるため。生成時に評価すれば、生成した状態はすべて必ず評価される。
+        // 展開時の評価は生成時評価に完全に包含される（根の露出数は best の初期値 0 と
+        // 等しく、根以外は必ず生成時に評価済み）ので削除した。
+        const revealed = exposedCount(next) - baseExposed;
+        if (revealed > best) {
+          best = revealed;
+          bestNode = nodes.length - 1;
+          // 上限に達したらそれ以上探索しても改善しない。内側ループから抜けるため
+          // 打ち切りは近似ではなく厳密（余分な状態を生成しない）。
+          if (best === maxReveal) break outer;
+        }
       }
     }
   }
