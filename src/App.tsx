@@ -11,8 +11,8 @@ import { uiToInternal, internalToUI, normalizeTube } from './solver/types';
 import { inferUnknowns } from './solver/infer';
 import { formatTubes } from './report/formatBoard';
 import { detectReveal } from './reveal';
-import { applyRevealToEntry, isStartState } from './board';
-import type { UITube, SolveResult } from './solver/types';
+import { applyRevealToEntry, applyRevealToInitial, isStartState } from './board';
+import type { UITube, SolveResult, Move } from './solver/types';
 import type { SaveEntry } from './hooks/useSaves';
 import type { WorkerOutMessage } from './solver/solver.worker';
 import type { DeepWorkerOutMessage } from './solver/deep-solver.worker';
@@ -34,6 +34,16 @@ function autoFillUnknown(tubes: UITube[]): UITube[] {
     }
     return normalizeTube(result);
   });
+}
+
+// board を起点に moves を順に適用したとき、すべての手が合法かどうか。
+function movesRemainValid(board: UITube[], moves: Move[]): boolean {
+  let state = board.map(uiToInternal);
+  for (const move of moves) {
+    if (!isValidMove(state, move.from, move.to)) return false;
+    state = applyMove(state, move.from, move.to);
+  }
+  return true;
 }
 
 function App() {
@@ -109,9 +119,18 @@ function App() {
 
     // reveal（? を具体色へ確定入力）なら、解・進捗を消さず盤面へ反映するだけ。
     // 推測が当たっていれば継続、外れていれば「この盤面から再探索」でリカバリする。
-    // 注: initialTubes は ? を保持したまま。ステップ戻し/リセットで判明色が再び ? に戻るのは
-    //     仕様（reveal 色を元レイアウト位置へ埋め戻さない）。
+    // partial の手順は '?' セルを動かさないので、判明色は initialTubes の同じ内部
+    // インデックスへ埋め戻せる（applyRevealToInitial のコメント参照）。埋め戻さないと
+    // ステップ戻しで initialTubes から再生した瞬間、入力済みの判明色がすべて ? に戻る。
+    // speculative は ? 由来のセルが移動して同一セルの保証が無いため埋め戻さない。
     if (result && detectReveal(tubes, newTubes)) {
+      if (result.type === 'partial' && initialTubes) {
+        const folded = applyRevealToInitial(initialTubes, tubes, newTubes);
+        // '?' が具体色に変わると注ぎ出すブロックが伸び、手順が成立しなくなることがある
+        // （例: ['?','A'] → ['A','A'] で1マスしか空きの無い先へ2マス注ぐ）。
+        // 成立するときだけ採用し、駄目なら従来どおり ? のまま残す（再探索で立て直す）。
+        if (movesRemainValid(folded, result.moves)) setInitialTubes(folded);
+      }
       setTubes(newTubes);
       return;
     }
@@ -138,22 +157,14 @@ function App() {
 
     // If a solution exists, check whether all its moves are still valid from the new initial state.
     // If so, preserve the result and replay to the current progress position.
-    if (result && 'moves' in result) {
-      let state = updatedInitial.map(uiToInternal);
-      let valid = true;
-      for (const move of result.moves) {
-        if (!isValidMove(state, move.from, move.to)) { valid = false; break; }
-        state = applyMove(state, move.from, move.to);
+    if (result && 'moves' in result && movesRemainValid(updatedInitial, result.moves)) {
+      let midState = updatedInitial.map(uiToInternal);
+      for (let i = 0; i < completedCount; i++) {
+        midState = applyMove(midState, result.moves[i].from, result.moves[i].to);
       }
-      if (valid) {
-        let midState = updatedInitial.map(uiToInternal);
-        for (let i = 0; i < completedCount; i++) {
-          midState = applyMove(midState, result.moves[i].from, result.moves[i].to);
-        }
-        setInitialTubes(updatedInitial);
-        setTubes(midState.map(internalToUI));
-        return;
-      }
+      setInitialTubes(updatedInitial);
+      setTubes(midState.map(internalToUI));
+      return;
     }
 
     // Default: clear result and reset to the new initial state
