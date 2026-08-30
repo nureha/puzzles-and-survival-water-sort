@@ -314,11 +314,47 @@ describe('solveMaxReveal – 露出数の最大化', () => {
     expect(result.revealHints).toEqual([{ tubeIndex: 0, stepIndex: 0 }]);
   });
 
+  test('revealHints は stepIndex の昇順に並ぶ', () => {
+    // 3本とも top が A・その下が ?。空き試験管1本に A を積み上げて3本とも露出できる。
+    // 既知 A:3 に対し ? が3個 → pool は ['A'] で長さ不一致 → partial 経路。
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['?', 'A'],
+      ['?', 'A'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.revealHints).toHaveLength(3);
+    const steps = result.revealHints.map(h => h.stepIndex);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]).toBeGreaterThan(steps[i - 1]);
+    }
+  });
+
   test('露出できない盤面では手順もヒントも空になる', () => {
     // tube1 は既にトップが ? （凍結済み）、tube0 に ? は無い → 露出候補ゼロ。
     const state: PuzzleState = [
       ['A', 'B', 'A', 'B'],
       ['B', 'A', 'B', '?'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.moves).toEqual([]);
+    expect(result.revealHints).toEqual([]);
+  });
+
+  test('露出候補はあるが到達できない盤面でも手順とヒントは空になる', () => {
+    // tube0 は ? の上に A×3（露出候補あり → maxRevealable = 1）。
+    // ただし空き試験管が無く、A を注げる先も無い（tube1 は完成、tube2 は満杯で top≠A）。
+    // tube2 の D も注ぎ先が無い。つまり有効手ゼロで、露出は到達不能。
+    // 既知 A:3 B:4 C:2 D:2 / ? が1個 → pool は長さ5で不一致 → partial 経路。
+    const state: PuzzleState = [
+      ['?', 'A', 'A', 'A'],
+      ['B', 'B', 'B', 'B'],
+      ['C', 'D', 'C', 'D'],
     ];
     const result = solve(state);
     expect(result.type).toBe('partial');
@@ -339,8 +375,15 @@ describe('solveMaxReveal – 露出数の最大化', () => {
     const result = solve(state);
     expect(result.type).toBe('partial');
     if (result.type !== 'partial') return;
-    expect(result.revealHints.length).toBeGreaterThan(0);
+    // 打ち切り結果の「質」を数値で固定する。> 0 だけでは、生成済みなのに未評価のまま
+    // 捨てられた層があっても検出できない（生成時評価の導入前はここが 2 だった）。
+    expect(result.revealHints.length).toBeGreaterThanOrEqual(3);
     // 最後の手は必ず露出手
     expect(result.moves[result.moves.length - 1].revealsTube).toBeDefined();
+    // 手順順に並んでいる
+    const steps = result.revealHints.map(h => h.stepIndex);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]).toBeGreaterThan(steps[i - 1]);
+    }
   }, 10_000);
 });
