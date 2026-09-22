@@ -161,3 +161,73 @@ describe('SolutionList 再探索・文言分岐', () => {
     expect(screen.queryByRole('button', { name: '保存' })).not.toBeInTheDocument();
   });
 });
+
+describe('SolutionList partial 分岐（最大露出手順）', () => {
+  const twoRevealResult = {
+    type: 'partial' as const,
+    moves: [
+      { from: 0, to: 2, revealsTube: 0 },
+      { from: 1, to: 3, revealsTube: 1 },
+    ],
+    revealHints: [
+      { tubeIndex: 0, stepIndex: 0 },
+      { tubeIndex: 1, stepIndex: 1 },
+    ],
+  };
+
+  test('露出手にステップ印を表示する', () => {
+    render(
+      <SolutionList
+        result={twoRevealResult}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(screen.getByText('← 試験管1 の ? が判明')).toBeInTheDocument();
+    expect(screen.getByText('← 試験管2 の ? が判明')).toBeInTheDocument();
+  });
+
+  test('見出しに判明する ? の個数を出す', () => {
+    render(
+      <SolutionList
+        result={twoRevealResult}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(screen.getByText('? を判明させる手順（2個の ? が判明します）:')).toBeInTheDocument();
+  });
+
+  test('末尾サマリに判明する試験管をすべて並べる', () => {
+    render(
+      <SolutionList
+        result={twoRevealResult}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(screen.getByText('試験管1・試験管2')).toBeInTheDocument();
+    expect(screen.getByText(/判明した色を入力して/)).toBeInTheDocument();
+  });
+
+  test('露出できる手順が無いとき理由を明示する', () => {
+    render(
+      <SolutionList
+        result={{ type: 'partial', moves: [], revealHints: [] }}
+        completedCount={0}
+        boardTubes={knownTubes}
+        onStepToggle={vi.fn()}
+        onReset={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText('動かせる既知のブロックが無く、? を判明させる手順がありません。')
+    ).toBeInTheDocument();
+  });
+});

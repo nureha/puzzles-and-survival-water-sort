@@ -11,11 +11,18 @@ export type InternalColor = string;
 export type InternalTube = InternalColor[];
 export type PuzzleState = InternalTube[];
 
-export type Move = { from: number; to: number; isSpeculative?: boolean };
+export type Move = {
+  from: number;
+  to: number;
+  isSpeculative?: boolean;
+  // この手を適用した直後にトップが '?' になる試験管（0 起点）。
+  // 1手は from 1本しか減らさないため、露出する試験管は高々1本。
+  revealsTube?: number;
+};
 
 export type RevealHint = {
   tubeIndex: number;
-  description: string;
+  stepIndex: number;
 };
 
 export type SolveResult =

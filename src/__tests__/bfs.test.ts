@@ -257,3 +257,133 @@ describe('solve – speculative (few unknowns)', () => {
     expect(result.type).toBe('partial');
   });
 });
+
+describe('solveMaxReveal – 露出数の最大化', () => {
+  // tube0/tube1 とも top が既知・その下が ?。空き試験管2本でどちらも露出できる。
+  // 既知色 A:1 B:1 に対し ? が2個 → buildColorPool が null を返すため partial 経路に入る。
+  const twoRevealBoard = (): PuzzleState => [
+    ['?', 'A'],
+    ['?', 'B'],
+    [],
+    [],
+  ];
+
+  test('複数の ? を1手順で露出させる', () => {
+    const result = solve(twoRevealBoard());
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.revealHints.map(h => h.tubeIndex).sort()).toEqual([0, 1]);
+    expect(result.moves).toHaveLength(2);
+  });
+
+  test('revealHints.stepIndex がその手の revealsTube と一致する', () => {
+    const result = solve(twoRevealBoard());
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    for (const hint of result.revealHints) {
+      expect(result.moves[hint.stepIndex].revealsTube).toBe(hint.tubeIndex);
+    }
+  });
+
+  test('revealsTube はその手の適用直後にトップが ? になる試験管を指す', () => {
+    const board = twoRevealBoard();
+    const result = solve(board);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    let s: PuzzleState = board;
+    for (const move of result.moves) {
+      s = applyMove(s, move.from, move.to);
+      const src = s[move.from];
+      const exposed = src.length > 0 && src[src.length - 1] === '?';
+      expect(move.revealsTube).toBe(exposed ? move.from : undefined);
+    }
+  });
+
+  test('露出数が同じなら最短手数を返す（余計な手を付けない）', () => {
+    // tube0 の A を1手動かすだけで唯一の ? が露出する。
+    // 既知 A:2 に対し ? が1個 → pool は [A,A] で長さ不一致 → partial 経路。
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['A'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.moves).toHaveLength(1);
+    expect(result.revealHints).toEqual([{ tubeIndex: 0, stepIndex: 0 }]);
+  });
+
+  test('revealHints は stepIndex の昇順に並ぶ', () => {
+    // 3本とも top が A・その下が ?。空き試験管1本に A を積み上げて3本とも露出できる。
+    // 既知 A:3 に対し ? が3個 → pool は ['A'] で長さ不一致 → partial 経路。
+    const state: PuzzleState = [
+      ['?', 'A'],
+      ['?', 'A'],
+      ['?', 'A'],
+      [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.revealHints).toHaveLength(3);
+    const steps = result.revealHints.map(h => h.stepIndex);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]).toBeGreaterThan(steps[i - 1]);
+    }
+  });
+
+  test('露出できない盤面では手順もヒントも空になる', () => {
+    // tube1 は既にトップが ? （凍結済み）、tube0 に ? は無い → 露出候補ゼロ。
+    const state: PuzzleState = [
+      ['A', 'B', 'A', 'B'],
+      ['B', 'A', 'B', '?'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.moves).toEqual([]);
+    expect(result.revealHints).toEqual([]);
+  });
+
+  test('露出候補はあるが到達できない盤面でも手順とヒントは空になる', () => {
+    // tube0 は ? の上に A×3（露出候補あり → maxRevealable = 1）。
+    // ただし空き試験管が無く、A を注げる先も無い（tube1 は完成、tube2 は満杯で top≠A）。
+    // tube2 の D も注ぎ先が無い。つまり有効手ゼロで、露出は到達不能。
+    // 既知 A:3 B:4 C:2 D:2 / ? が1個 → pool は長さ5で不一致 → partial 経路。
+    const state: PuzzleState = [
+      ['?', 'A', 'A', 'A'],
+      ['B', 'B', 'B', 'B'],
+      ['C', 'D', 'C', 'D'],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    expect(result.moves).toEqual([]);
+    expect(result.revealHints).toEqual([]);
+  });
+
+  // 最大構成に近い盤面。同一内容の試験管が並ぶため状態爆発が起きやすく、
+  // 探索予算がそのまま実行時間に効く。Step 6 の予算調整はこのテストで測る。
+  test('大きな盤面でも予算内に partial を返す', () => {
+    // 既知 A が16個 → buildColorPool が needed < 0 で null → partial 経路。
+    // 探索予算に達しても、その時点までの最良結果を返して停止すること。
+    const state: PuzzleState = [
+      ...Array.from({ length: 16 }, () => ['?', 'A'] as string[]),
+      [], [], [], [],
+    ];
+    const result = solve(state);
+    expect(result.type).toBe('partial');
+    if (result.type !== 'partial') return;
+    // 打ち切り結果の「質」を数値で固定する。> 0 だけでは、生成済みなのに未評価のまま
+    // 捨てられた層があっても検出できない（生成時評価の導入前はここが 2 だった）。
+    expect(result.revealHints.length).toBeGreaterThanOrEqual(3);
+    // 最後の手は必ず露出手
+    expect(result.moves[result.moves.length - 1].revealsTube).toBeDefined();
+    // 手順順に並んでいる
+    const steps = result.revealHints.map(h => h.stepIndex);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]).toBeGreaterThan(steps[i - 1]);
+    }
+  }, 10_000);
+});

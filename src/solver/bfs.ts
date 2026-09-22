@@ -105,6 +105,22 @@ class MinHeap<T> {
 const MAX_STATES = 1_000_000;
 const SPECULATIVE_ATTEMPTS = 30;
 const SPECULATIVE_MAX_STATES = 200_000;
+// partial（? の露出）探索の予算。? を含む盤面は isValidMove が凍結した試験管を
+// 弾くぶん自由度が低く、到達状態数は具体色ソルバーより小さい。予算に達した場合は
+// その時点までの最良結果を返す。
+// 注: 「旧実装（最初の1個を露出したら即返す）と同じ深さで見つかるので悪化しない」
+// という理屈は成り立たない。旧実装は露出手を打つ前の状態で露出を検知していたのに対し、
+// 本実装は露出を状態として観測するため BFS を1層深く展開する必要があり、加えて予算も
+// MAX_STATES（1,000,000）から 1/10 に絞っている。理論保証ではなく実測での判断:
+// 試した盤面はいずれも旧実装の1個に対し2〜3個を返し、下回る例は確認されていない
+// （2026-08-30）。
+// 実測: 20本・?16個の盤面で 200,000 は約3.35秒、100,000 は約1.23秒
+// （2026-08-30, Node 22 / M1）。3秒以内に収まる最大値として 100,000 を採用。
+const REVEAL_MAX_STATES = 100_000;
+// 露出探索の進捗通知の間隔（状態数）。1回の展開で visited が数十件増えるため
+// solveAstar の `size % 10_000 === 0` 方式では倍数を跨いで通知が飛ぶ。閾値方式で
+// 10,000 状態ごとに確実に通知する。
+const REVEAL_PROGRESS_INTERVAL = 10_000;
 // When the ? cells admit at most this many distinct color fillings, enumerate all of
 // them at full solver strength instead of random sampling. 24 = 4! covers up to four
 // distinct-color unknowns (the typical late-game residue), while keeping worst-case
@@ -339,52 +355,107 @@ export function solve(initialState: PuzzleState, onProgress?: (n: number) => voi
   if (initialState.some(tube => tube.includes('?'))) {
     const specResult = solveSpeculative(initialState, onProgress);
     if (specResult) return specResult;
-    return solvePartial(initialState);
+    return solveMaxReveal(initialState, onProgress);
   }
 
   const { moves } = solveConcrete(initialState, MAX_STATES, onProgress);
   return moves ? { type: 'solved', moves } : { type: 'unsolvable' };
 }
 
-function firstValidDest(state: PuzzleState, from: number): number {
-  for (let j = 0; j < state.length; j++) {
-    if (isValidMove(state, from, j)) return j;
+// トップが '?' の試験管の本数。isValidMove がトップ '?' の試験管を from にも to にも
+// 選ばせないため、一度露出した試験管は永久に凍結する。よってこの値は経路に沿って
+// 単調増加し、初期値との差がそのまま「この手順で新たに判明した ? の個数」になる。
+function exposedCount(state: PuzzleState): number {
+  let n = 0;
+  for (const tube of state) {
+    if (tube.length > 0 && tube[tube.length - 1] === '?') n++;
   }
-  return -1;
+  return n;
 }
 
-// Builds a partial result whose moves END with the ?-exposing move (moving the known
-// block sitting directly on top of a ?), so the entire reveal sequence is checkable in
-// the UI. After completing the steps the ? is at the top; the user enters the revealed
-// color and re-searches from that (correct) board. Both path and exposing moves only
-// touch KNOWN cells, so replaying them on the ?-board is exact.
-function partialWithReveal(state: PuzzleState, pathMoves: Move[], hints: RevealHint[]): SolveResult {
-  if (hints.length === 0) return { type: 'partial', moves: pathMoves, revealHints: [] };
-  const h = hints[0];
-  const exposeMove: Move = { from: h.tubeIndex, to: firstValidDest(state, h.tubeIndex) };
-  return {
-    type: 'partial',
-    moves: [...pathMoves, exposeMove],
-    revealHints: [{
-      tubeIndex: h.tubeIndex,
-      description: `手順をすべて実行すると試験管${h.tubeIndex + 1}の ? が上に出ます。判明した色を入力して「この盤面から再探索」を押してください。`,
-    }],
-  };
+// 露出しうる試験管の本数の上限。'?' を含み、かつトップがまだ既知色の試験管。
+// 到達可能とは限らないが、ここに達したら探索を打ち切ってよい。
+function maxRevealable(state: PuzzleState): number {
+  let n = 0;
+  for (const tube of state) {
+    if (tube.includes('?') && tube[tube.length - 1] !== '?') n++;
+  }
+  return n;
 }
 
-function solvePartial(initialState: PuzzleState): SolveResult {
-  type Node = { state: PuzzleState; moves: Move[] };
-  const queue: Node[] = [{ state: initialState, moves: [] }];
-  const visited = new Set<string>([stateKey(initialState)]);
+// 探索木のノード。盤面そのものは持たず、visited に登録済みの stateKey 文字列を
+// そのまま参照する（同一の文字列インスタンスなので追加のメモリを消費しない）。
+// buildRevealResult は initialState から手順を再生するため parent/move しか使わず、
+// 盤面が要るのは自分を展開する瞬間だけなので、そこで key から復元すれば足りる。
+// PuzzleState を全ノードに持たせると 20本盤面で1件あたり 1KB を超え、予算いっぱいまで
+// 探索するとヒープが 130MB 超に膨らむ（Web Worker / モバイルで OOM の危険）。
+type RevealNode = { key: string; parent: number; move: Move | null };
 
-  while (queue.length > 0 && visited.size < MAX_STATES) {
-    const { state, moves } = queue.shift()!;
+// stateKey の逆変換。色は 1 文字（'A'–'Z' か '?'）で ',' '|' を含まないため可逆。
+function parseStateKey(key: string): PuzzleState {
+  return key.split('|').map(tube => (tube === '' ? [] : tube.split(',')));
+}
 
-    // Return as soon as we reach a state where a ? can be revealed.
-    // BFS guarantees this is the shortest path to any such state.
-    const hints = findRevealHints(state);
-    if (hints.length > 0) {
-      return partialWithReveal(state, moves, hints);
+// 親ポインタを辿って経路を復元し、各手に revealsTube を付けて RevealHint を組み立てる。
+function buildRevealResult(
+  initialState: PuzzleState,
+  nodes: RevealNode[],
+  bestNode: number,
+): SolveResult {
+  const rawMoves: Move[] = [];
+  for (let i = bestNode; i > 0; i = nodes[i].parent) {
+    rawMoves.push(nodes[i].move!);
+  }
+  rawMoves.reverse();
+
+  const moves: Move[] = [];
+  const revealHints: RevealHint[] = [];
+  let state = initialState;
+  for (let i = 0; i < rawMoves.length; i++) {
+    const move = rawMoves[i];
+    state = applyMove(state, move.from, move.to);
+    // 注ぎ先のトップは注いだ既知色になるため、露出しうるのは注ぎ元だけ。
+    const src = state[move.from];
+    if (src.length > 0 && src[src.length - 1] === '?') {
+      moves.push({ ...move, revealsTube: move.from });
+      revealHints.push({ tubeIndex: move.from, stepIndex: i });
+    } else {
+      moves.push(move);
+    }
+  }
+  return { type: 'partial', moves, revealHints };
+}
+
+// 1回の手順で露出できる ? の個数を最大化する。
+//
+// 1) 最短性: BFS の生成順は深さについて単調非減少（head の子の深さは depth(head)+1、
+//    かつ depth(head) は head について単調非減少）。best は生成順に更新されるので、
+//    ある露出数を最初に達成したノード＝その露出数における最短手順になる。
+// 2) 末尾は必ず露出手: あるノードの親は必ずそれより先に生成され、その時点の best と
+//    比較済みである。best は単調非減少なので、親の露出数が子と同じなら親の時点で
+//    best がその値まで上がっており、子は best を更新できない。よって best を更新した
+//    ノードの親は必ず露出数が小さく、最後の手は必ず露出手。末尾の刈り込みは不要。
+//    （1手が減らす試験管は from の1本だけなので露出数の増分は高々1。）
+function solveMaxReveal(initialState: PuzzleState, onProgress?: (n: number) => void): SolveResult {
+  const maxReveal = maxRevealable(initialState);
+  if (maxReveal === 0) return { type: 'partial', moves: [], revealHints: [] };
+
+  const baseExposed = exposedCount(initialState);
+  const rootKey = stateKey(initialState);
+  const nodes: RevealNode[] = [{ key: rootKey, parent: -1, move: null }];
+  const visited = new Set<string>([rootKey]);
+
+  let best = 0;
+  let bestNode = 0;
+  let nextProgressAt = REVEAL_PROGRESS_INTERVAL;
+
+  outer:
+  for (let head = 0; head < nodes.length && visited.size < REVEAL_MAX_STATES; head++) {
+    const state = parseStateKey(nodes[head].key);
+
+    if (onProgress && visited.size >= nextProgressAt) {
+      onProgress(visited.size);
+      nextProgressAt = visited.size + REVEAL_PROGRESS_INTERVAL;
     }
 
     const firstEmpty = firstEmptyIndex(state);
@@ -396,12 +467,26 @@ function solvePartial(initialState: PuzzleState): SolveResult {
         const key = stateKey(next);
         if (visited.has(key)) continue;
         visited.add(key);
-        queue.push({ state: next, moves: [...moves, { from, to }] });
+        nodes.push({ key, parent: head, move: { from, to } });
+
+        // 露出数の評価は「展開時」ではなく「生成時」に行う。予算切れでループを抜けると
+        // 最後に生成した層（＝最も深く、露出数が最大になりうる層）が丸ごと未評価のまま
+        // 捨てられるため。生成時に評価すれば、生成した状態はすべて必ず評価される。
+        // 展開時の評価は生成時評価に完全に包含される（根の露出数は best の初期値 0 と
+        // 等しく、根以外は必ず生成時に評価済み）ので削除した。
+        const revealed = exposedCount(next) - baseExposed;
+        if (revealed > best) {
+          best = revealed;
+          bestNode = nodes.length - 1;
+          // 上限に達したらそれ以上探索しても改善しない。内側ループから抜けるため
+          // 打ち切りは近似ではなく厳密（余分な状態を生成しない）。
+          if (best === maxReveal) break outer;
+        }
       }
     }
   }
 
-  return partialWithReveal(initialState, [], findRevealHints(initialState));
+  return buildRevealResult(initialState, nodes, bestNode);
 }
 
 // IDA* (Iterative Deepening A*): explores arbitrarily deep without memory limits.
@@ -471,28 +556,4 @@ export function solveDeep(
   }
 
   return null;
-}
-
-function findRevealHints(state: PuzzleState): RevealHint[] {
-  const hints: RevealHint[] = [];
-  for (let i = 0; i < state.length; i++) {
-    const tube = state[i];
-    const top = topColor(tube);
-    if (!top || top === '?') continue;
-    const count = topConsecutiveCount(tube);
-    const belowIndex = tube.length - 1 - count;
-    if (belowIndex >= 0 && tube[belowIndex] === '?') {
-      const dests = [];
-      for (let j = 0; j < state.length; j++) {
-        if (isValidMove(state, i, j)) dests.push(j + 1);
-      }
-      // Only a real reveal opportunity if the blocking block can actually be moved.
-      if (dests.length === 0) continue;
-      hints.push({
-        tubeIndex: i,
-        description: `試験管${i + 1}のトップ（${top}）を試験管${dests.join('・')}へ動かすと ? が判明します`,
-      });
-    }
-  }
-  return hints;
 }

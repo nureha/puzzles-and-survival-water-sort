@@ -41,3 +41,37 @@ export function applyRevealToEntry(
   }
   return entryInt.map(internalToUI);
 }
+
+// partial の露出手順で判明した色を、元レイアウト（initialTubes）の同じ内部インデックスへ
+// 埋め戻して返す。ステップ戻し（initialTubes からの再生）で判明色が ? に戻るのを防ぐ。
+//
+// 同一セルであることの根拠: partial の手順は '?' セルを動かさない。isValidMove が
+// トップ '?' の試験管を from にも to にも選ばないため、'?' の上に積まれるのは常に既知色で、
+// '?' 自身は下から数えた位置（InternalTube のインデックス）を手順中ずっと保つ。
+// よって途中盤面の (t, i) と元レイアウトの (t, i) は同じセルを指す。
+// speculative の手順は ? 由来のセルが移動するためこの性質が無い。呼び出し側で
+// result.type === 'partial' に限定すること。
+export function applyRevealToInitial(
+  initialTubes: UITube[],
+  oldTubes: UITube[],
+  newTubes: UITube[],
+): UITube[] {
+  const initInt = initialTubes.map(uiToInternal);
+  const oldInt = oldTubes.map(uiToInternal);
+  const newInt = newTubes.map(uiToInternal);
+
+  for (let t = 0; t < initInt.length; t++) {
+    const initTube = initInt[t];
+    const oldTube = oldInt[t];
+    const newTube = newInt[t];
+    if (!oldTube || !newTube) continue; // 本数不一致は無視
+    for (let i = 0; i < initTube.length; i++) {
+      if (initTube[i] !== '?') continue; // 既知色のセルは触らない
+      if (oldTube[i] !== '?') continue; // 途中盤面でも '?' だったセルのみ（長さ不足は undefined で弾かれる）
+      const nv = newTube[i];
+      if (nv === undefined || nv === '?' || nv === '') continue; // 具体色への確定のみ
+      initTube[i] = nv;
+    }
+  }
+  return initInt.map(internalToUI);
+}
