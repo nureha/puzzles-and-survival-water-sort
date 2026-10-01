@@ -11,6 +11,7 @@ export const LETTER_COLORS: Record<string, string> = {
   J: '#e8a5b5',
   K: '#7c4dff',
   L: '#4dd0e1',
+  M: '#c5907b',
 };
 
 export function textColorForBg(bgHex: string): string {
