@@ -1,6 +1,18 @@
+import type { ReactNode } from 'react';
 import { LETTER_COLORS, textColorForBg } from './legendColors';
 
-const LEGEND: { letter: string; symbol: string; label: string; rotate?: number; fontSize?: string }[] = [
+// 下向きの矢じり（上辺に浅い切り欠きを持つ凹四角形）。
+// 対応する Unicode 文字が無いため SVG で描く。
+// 頂点: 左上(2,3) → 切り欠き(12,8) → 右上(22,3) → 先端(12,22)
+function DartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M2 3 L12 8 L22 3 L12 22 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+const LEGEND: { letter: string; symbol: ReactNode; label: string; rotate?: number; fontSize?: string }[] = [
   { letter: 'A', symbol: '♥', label: 'ハート' },
   { letter: 'B', symbol: '♦', label: 'ダイヤ' },
   { letter: 'C', symbol: '★', label: '星' },
@@ -13,6 +25,7 @@ const LEGEND: { letter: string; symbol: string; label: string; rotate?: number; 
   { letter: 'J', symbol: '⬠', label: '五角形', rotate: 180, fontSize: '2.0rem' },
   { letter: 'K', symbol: 'II', label: 'イコール縦' },
   { letter: 'L', symbol: '△', label: '三角形' },
+  { letter: 'M', symbol: <DartIcon />, label: '矢じり' },
 ];
 
 export function ShapeLegend() {
